@@ -1,0 +1,28 @@
+{
+  "name": "nibot",
+  "version": "0.1.0",
+  "description": "Local CLI MVP for AI-assisted long-form writing workflows.",
+  "type": "module",
+  "bin": {
+    "nibot": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "diff": "^5.2.0",
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}
