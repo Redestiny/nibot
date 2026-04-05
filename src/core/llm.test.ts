@@ -4,17 +4,15 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createCompletionMock, clientConfigs } = vi.hoisted(() => ({
-  createCompletionMock: vi.fn(),
+const { createResponseMock, clientConfigs } = vi.hoisted(() => ({
+  createResponseMock: vi.fn(),
   clientConfigs: [] as Array<{ apiKey: string; baseURL: string }>,
 }));
 
 vi.mock('openai', () => ({
   default: class FakeOpenAI {
-    public readonly chat = {
-      completions: {
-        create: createCompletionMock,
-      },
+    public readonly responses = {
+      create: createResponseMock,
     };
 
     public constructor(config: { apiKey: string; baseURL: string }) {
@@ -52,7 +50,7 @@ const tempDirs: string[] = [];
 
 describe('OpenAiCompatibleLlmClient', () => {
   beforeEach(() => {
-    createCompletionMock.mockReset();
+    createResponseMock.mockReset();
     clientConfigs.splice(0, clientConfigs.length);
   });
 
@@ -65,17 +63,11 @@ describe('OpenAiCompatibleLlmClient', () => {
     );
   });
 
-  it('generates text and forwards OpenAI-compatible request fields', async () => {
+  it('generates text and forwards Responses API request fields', async () => {
     const { provider, configPath } = await createConfiguredProvider();
 
-    createCompletionMock.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: [{ text: '你好' }, { text: '世界' }],
-          },
-        },
-      ],
+    createResponseMock.mockResolvedValue({
+      output_text: '你好世界',
     });
 
     const client = new OpenAiCompatibleLlmClient();
@@ -88,21 +80,23 @@ describe('OpenAiCompatibleLlmClient', () => {
         baseURL: provider.base_url,
       },
     ]);
-    expect(createCompletionMock).toHaveBeenCalledWith({
+    expect(createResponseMock).toHaveBeenCalledWith({
       model: provider.model,
-      messages,
+      instructions: '系统提示',
+      input: [{ role: 'user', content: '继续写作' }],
     });
   });
 
   it('streams only non-empty text chunks', async () => {
     const { provider } = await createConfiguredProvider();
 
-    createCompletionMock.mockResolvedValue(
+    createResponseMock.mockResolvedValue(
       toAsyncIterable([
-        { choices: [{ delta: { content: '' } }] },
-        { choices: [{ delta: { content: '片段一' } }] },
-        { choices: [{ delta: { content: [{ text: '片段' }, { text: '二' }] } }] },
-        { choices: [{ delta: { content: null } }] },
+        { type: 'response.created' },
+        { type: 'response.output_text.delta', delta: '' },
+        { type: 'response.output_text.delta', delta: '片段一' },
+        { type: 'response.completed' },
+        { type: 'response.output_text.delta', delta: '片段二' },
       ]),
     );
 
@@ -112,17 +106,34 @@ describe('OpenAiCompatibleLlmClient', () => {
       '片段二',
     ]);
 
-    expect(createCompletionMock).toHaveBeenCalledWith({
+    expect(createResponseMock).toHaveBeenCalledWith({
       model: provider.model,
-      messages,
+      instructions: '系统提示',
+      input: [{ role: 'user', content: '继续写作' }],
       stream: true,
+    });
+  });
+
+  it('rejects empty Responses API outputs', async () => {
+    const { provider } = await createConfiguredProvider();
+
+    createResponseMock.mockResolvedValue({
+      output_text: '',
+    });
+
+    const client = new OpenAiCompatibleLlmClient();
+
+    await expect(client.generateText({ provider, messages })).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'EMPTY_LLM_RESPONSE',
+      message: 'Model returned an empty response.',
     });
   });
 
   it('wraps completion failures in a NibotError', async () => {
     const { provider } = await createConfiguredProvider();
 
-    createCompletionMock.mockRejectedValue(new Error('upstream failed'));
+    createResponseMock.mockRejectedValue(new Error('upstream failed'));
 
     const client = new OpenAiCompatibleLlmClient();
 
