@@ -1,14 +1,40 @@
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   addProviderToStore,
+  getProviderConfigPath,
+  loadProviderStore,
   maskApiKey,
   parseProviderStore,
   resolveProvider,
+  saveProviderStore,
   setDefaultProviderInStore,
 } from '../src/providers.js';
 
+const tempDirs: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    tempDirs.splice(0).map(async (dir) => {
+      const { rm } = await import('node:fs/promises');
+      await rm(dir, { recursive: true, force: true });
+    }),
+  );
+});
+
 describe('providers', () => {
+  it('resolves provider config path under ~/.config by default', () => {
+    expect(getProviderConfigPath('/tmp/home')).toBe('/tmp/home/.config/nibot/config.json');
+  });
+
+  it('resolves provider config path under XDG_CONFIG_HOME when provided', () => {
+    expect(getProviderConfigPath('/tmp/home', '/tmp/xdg')).toBe('/tmp/xdg/nibot/config.json');
+  });
+
   it('adds providers and defaults the first one', () => {
     const store = addProviderToStore(
       { providers: [] },
@@ -89,4 +115,34 @@ describe('providers', () => {
       ),
     ).toThrow('Provider "deepseek" already exists');
   });
+
+  it('saves and loads provider config from the XDG path', async () => {
+    const homeDir = await createTempDir();
+    const xdgConfigHome = join(homeDir, 'custom-config');
+    const store = {
+      providers: [
+        {
+          name: 'deepseek',
+          base_url: 'https://api.deepseek.com/v1',
+          api_key: 'sk-test-123456',
+          model: 'deepseek-chat',
+        },
+      ],
+      default_provider: 'deepseek',
+    };
+
+    await saveProviderStore(store, homeDir, xdgConfigHome);
+
+    expect(await readFile(join(xdgConfigHome, 'nibot', 'config.json'), 'utf8')).toContain(
+      '"default_provider": "deepseek"',
+    );
+    await expect(loadProviderStore(homeDir, xdgConfigHome)).resolves.toEqual(store);
+  });
+
 });
+
+async function createTempDir(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'nibot-providers-'));
+  tempDirs.push(dir);
+  return dir;
+}

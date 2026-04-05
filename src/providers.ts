@@ -1,19 +1,36 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { NibotError } from './errors.js';
 import type { ProviderConfig, ProviderStore } from './types.js';
 
-const CONFIG_DIRNAME = '.nibot';
+const CONFIG_DIRNAME = 'nibot';
 const CONFIG_FILENAME = 'config.json';
 
-export function getProviderConfigPath(homeDir = homedir()): string {
-  return join(homeDir, CONFIG_DIRNAME, CONFIG_FILENAME);
+function resolveConfigBaseDir(
+  homeDir = homedir(),
+  xdgConfigHome = process.env.XDG_CONFIG_HOME,
+): string {
+  if (typeof xdgConfigHome === 'string' && xdgConfigHome.length > 0) {
+    return xdgConfigHome;
+  }
+
+  return join(homeDir, '.config');
 }
 
-export async function loadProviderStore(homeDir = homedir()): Promise<ProviderStore> {
-  const configPath = getProviderConfigPath(homeDir);
+export function getProviderConfigPath(
+  homeDir = homedir(),
+  xdgConfigHome = process.env.XDG_CONFIG_HOME,
+): string {
+  return join(resolveConfigBaseDir(homeDir, xdgConfigHome), CONFIG_DIRNAME, CONFIG_FILENAME);
+}
+
+export async function loadProviderStore(
+  homeDir = homedir(),
+  xdgConfigHome = process.env.XDG_CONFIG_HOME,
+): Promise<ProviderStore> {
+  const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
 
   try {
     const raw = await readFile(configPath, 'utf8');
@@ -33,9 +50,10 @@ export async function loadProviderStore(homeDir = homedir()): Promise<ProviderSt
 export async function saveProviderStore(
   store: ProviderStore,
   homeDir = homedir(),
+  xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): Promise<void> {
-  const configPath = getProviderConfigPath(homeDir);
-  await mkdir(join(homeDir, CONFIG_DIRNAME), { recursive: true });
+  const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
+  await mkdir(dirname(configPath), { recursive: true });
   await writeFile(configPath, `${JSON.stringify(store, null, 2)}\n`, 'utf8');
 }
 
