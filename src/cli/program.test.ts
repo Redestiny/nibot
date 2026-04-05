@@ -5,9 +5,9 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { runCli } from '../src/cli.js';
-import { saveProviderStore } from '../src/providers.js';
-import type { LlmClient, LlmGenerateRequest, LlmStreamRequest } from '../src/types.js';
+import { runCli } from './program.js';
+import { saveProviderStore } from '../core/providers.js';
+import type { LlmClient, LlmGenerateRequest, LlmStreamRequest } from '../core/types.js';
 
 class FakeCliLlm implements LlmClient {
   public constructor(

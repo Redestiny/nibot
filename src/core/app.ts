@@ -1,11 +1,6 @@
 import { CHARACTERS_FILENAME, WORLD_STATE_FILENAME } from './constants.js';
 import { OpenAiCompatibleLlmClient } from './llm.js';
-import {
-  buildCompleteMessages,
-  buildSyncMessages,
-  buildWriteMessages,
-  formatChapterNumber,
-} from './prompts.js';
+import { buildCompleteMessages, buildSyncMessages, buildWriteMessages } from './prompts.js';
 import {
   addProviderToStore,
   loadProviderStore,
@@ -262,55 +257,4 @@ function ensureNonEmptyGeneratedText(content: string, label: string): void {
       code: 'EMPTY_LLM_RESPONSE',
     });
   }
-}
-
-export function renderBookCreatedMessage(result: Awaited<ReturnType<ReturnType<typeof createNibotApp>['createBook']>>): string {
-  return `Created book "${result.book.id}" at ${result.path}.`;
-}
-
-export function renderBookListMessage(result: Awaited<ReturnType<ReturnType<typeof createNibotApp>['listBooks']>>): string {
-  if (result.length === 0) {
-    return 'No books found in the current directory.';
-  }
-
-  return result
-    .map(
-      (book) =>
-        `${book.id} (${book.chapter_count} chapters${book.latest_chapter ? `, latest ${book.latest_chapter}` : ''})`,
-    )
-    .join('\n');
-}
-
-export function renderBookStatusMessage(result: Awaited<ReturnType<ReturnType<typeof createNibotApp>['getBookStatus']>>): string {
-  return [
-    `Book: ${result.id}`,
-    `Title: ${result.title}`,
-    `Language: ${result.lang}`,
-    `Chapters: ${result.chapter_count}`,
-    `Latest chapter: ${result.latest_chapter ?? 'none'}`,
-    `Settings: ${result.settings_files.join(', ')}`,
-  ].join('\n');
-}
-
-export function renderProviderListMessage(result: Awaited<ReturnType<ReturnType<typeof createNibotApp>['listProviders']>>): string {
-  if (result.providers.length === 0) {
-    return 'No providers configured.';
-  }
-
-  return result.providers
-    .map((provider) => {
-      const defaultTag = provider.is_default ? ' [default]' : '';
-      return `${provider.name}${defaultTag} -> ${provider.model} @ ${provider.base_url} (${provider.api_key})`;
-    })
-    .join('\n');
-}
-
-export function renderWriteResultMessage(result: {
-  action: string;
-  book_id: string;
-  chapter: number;
-  filename: string;
-  provider: string;
-}): string {
-  return `${result.action === 'write' ? 'Wrote' : 'Completed'} ${formatChapterNumber(result.chapter)} for "${result.book_id}" using provider "${result.provider}".`;
 }

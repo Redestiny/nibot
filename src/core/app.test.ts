@@ -4,9 +4,9 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createNibotApp } from '../src/app.js';
-import { saveProviderStore } from '../src/providers.js';
-import type { LlmClient, LlmGenerateRequest, LlmStreamRequest } from '../src/types.js';
+import { createNibotApp } from './app.js';
+import { saveProviderStore } from './providers.js';
+import type { LlmClient, LlmGenerateRequest, LlmStreamRequest } from './types.js';
 
 class FakeLlmClient implements LlmClient {
   public readonly streamedRequests: LlmStreamRequest[] = [];

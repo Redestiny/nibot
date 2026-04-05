@@ -13,7 +13,7 @@ import {
   parseEnvFile,
   resolveCompleteTarget,
   resolveWriteTarget,
-} from '../src/workspace.js';
+} from './workspace.js';
 
 const createdDirs: string[] = [];
 

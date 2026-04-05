@@ -1,25 +1,22 @@
-#!/usr/bin/env node
-
-import { createInterface } from 'node:readline/promises';
 import { stdin, stdout, stderr } from 'node:process';
 import { homedir } from 'node:os';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
-import { pathToFileURL } from 'node:url';
 
+import { createNibotApp } from '../core/app.js';
+import { NibotError, toNibotError } from '../core/errors.js';
+import type { LlmClient } from '../core/types.js';
+import { parseChapterNumber } from '../core/workspace.js';
+import { confirmAction, promptForProvider, type CliStreams } from './interactions.js';
+import { OutputWriter } from './output.js';
 import {
-  createNibotApp,
   renderBookCreatedMessage,
   renderBookListMessage,
   renderBookStatusMessage,
   renderProviderListMessage,
   renderWriteResultMessage,
-} from './app.js';
-import { NibotError, toNibotError } from './errors.js';
-import { OutputWriter } from './output.js';
-import type { LlmClient, ProviderConfig } from './types.js';
-import { parseChapterNumber } from './workspace.js';
+} from './renderers.js';
 
-interface BuildCliOptions {
+export interface BuildCliOptions {
   cwd?: string;
   homeDir?: string;
   stdin?: NodeJS.ReadableStream;
@@ -30,7 +27,7 @@ interface BuildCliOptions {
 }
 
 export function buildProgram(options: BuildCliOptions = {}): Command {
-  const io = {
+  const io: CliStreams = {
     stdin: options.stdin ?? stdin,
     stdout: options.stdout ?? stdout,
     stderr: options.stderr ?? stderr,
@@ -345,65 +342,4 @@ function parseChapterOption(value: string): number {
 
     throw error;
   }
-}
-
-async function promptForProvider(
-  io: {
-    stdin: NodeJS.ReadableStream;
-    stdout: NodeJS.WritableStream;
-    stderr: NodeJS.WritableStream;
-  },
-  jsonMode: boolean,
-): Promise<ProviderConfig> {
-  const promptOutput = jsonMode ? io.stderr : io.stdout;
-  const rl = createInterface({
-    input: io.stdin,
-    output: promptOutput,
-  });
-
-  try {
-    const name = (await rl.question('Provider name: ')).trim();
-    const baseUrl = (await rl.question('Base URL: ')).trim();
-    const apiKey = (await rl.question('API key: ')).trim();
-    const model = (await rl.question('Model: ')).trim();
-
-    return {
-      name,
-      base_url: baseUrl,
-      api_key: apiKey,
-      model,
-    };
-  } finally {
-    rl.close();
-  }
-}
-
-async function confirmAction(
-  io: {
-    stdin: NodeJS.ReadableStream;
-    stdout: NodeJS.WritableStream;
-    stderr: NodeJS.WritableStream;
-  },
-  jsonMode: boolean,
-  prompt: string,
-): Promise<boolean> {
-  const rl = createInterface({
-    input: io.stdin,
-    output: jsonMode ? io.stderr : io.stdout,
-  });
-
-  try {
-    const answer = (await rl.question(prompt)).trim().toLowerCase();
-    return answer === 'y' || answer === 'yes';
-  } finally {
-    rl.close();
-  }
-}
-
-const isEntrypoint =
-  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-
-if (isEntrypoint) {
-  const exitCode = await runCli();
-  process.exitCode = exitCode;
 }

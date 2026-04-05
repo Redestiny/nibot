@@ -13,7 +13,7 @@ import {
   resolveProvider,
   saveProviderStore,
   setDefaultProviderInStore,
-} from '../src/providers.js';
+} from './providers.js';
 
 const tempDirs: string[] = [];
 
@@ -138,7 +138,6 @@ describe('providers', () => {
     );
     await expect(loadProviderStore(homeDir, xdgConfigHome)).resolves.toEqual(store);
   });
-
 });
 
 async function createTempDir(): Promise<string> {

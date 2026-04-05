@@ -4,11 +4,11 @@
   "description": "Local CLI MVP for AI-assisted long-form writing workflows.",
   "type": "module",
   "bin": {
-    "nibot": "./dist/cli.js"
+    "nibot": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/cli.ts",
+    "dev": "tsx src/cli/index.ts",
     "test": "vitest run"
   },
   "engines": {
