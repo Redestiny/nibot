@@ -20,7 +20,7 @@ Nibot是一个小说写作辅助工具
 
 | 命令 | 说明 |
 |------|------|
-| `nibot book create <bookid>` | 创建新书，生成目录结构和空白设定文件 |
+| `nibot book create <bookid>` | 创建新书，生成工作目录与默认设定文件 |
 | `nibot book list` | 列出所有书籍 |
 | `nibot status <bookid>` | 显示书籍状态（章节数、最新章节） |
 
@@ -28,14 +28,14 @@ Nibot是一个小说写作辅助工具
 
 | 命令 | 说明 |
 |------|------|
-| `nibot write <bookid> [--intent "..."] [--provider name]` | 写下一章，加载 settings + 前几章作为 context |
-| `nibot complete <bookid> [--intent "..."] [--provider name]` | 补全当前章节，加载 settings + 当前章节已有内容作为 context |
+| `nibot write <bookid> [--chapter <number>]` | 生成下一章或指定章节内容 |
+| `nibot complete <bookid> [--chapter <number>]` | 补全最新章节或指定章节 |
 
 ## 设定同步
 
 | 命令 | 说明 |
 |------|------|
-| `nibot sync <bookid>` | 读取最新章节，提取变化，输出 diff 供作者 Review，确认后覆写 settings |
+| `nibot sync <bookid> ` | 基于最新章节生成设定变更 diff，确认后应用 |
 
 ## Provider 管理
 
