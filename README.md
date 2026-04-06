@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/icon.svg" alt="Nibot icon" width="180" />
+</p>
+
 # Nibot
 Nibot是一个小说写作辅助工具
 通过agent补全与生成来让作者再也不会卡文
