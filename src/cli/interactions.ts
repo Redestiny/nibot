@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 
-import type { ProviderConfig } from '../core/types.js';
+import type { ProviderConfig, ProviderType } from '../core/types.js';
 
 export interface CliStreams {
   stdin: NodeJS.ReadableStream;
@@ -18,12 +18,23 @@ export async function promptForProvider(
   });
 
   try {
+    let type: ProviderType = 'openai';
+    let typeAnswer = (await rl.question('Provider type (openai/anthropic): ')).trim().toLowerCase();
+
+    if (typeAnswer !== 'anthropic' && typeAnswer !== 'openai') {
+      io.stderr.write(`Invalid provider type "${typeAnswer}". Must be "openai" or "anthropic".\n`);
+      typeAnswer = (await rl.question('Provider type (openai/anthropic): ')).trim().toLowerCase();
+    }
+
+    type = typeAnswer as ProviderType;
+
     const name = (await rl.question('Provider name: ')).trim();
     const baseUrl = (await rl.question('Base URL: ')).trim();
     const apiKey = (await rl.question('API key: ')).trim();
     const model = (await rl.question('Model: ')).trim();
 
     return {
+      type,
       name,
       base_url: baseUrl,
       api_key: apiKey,

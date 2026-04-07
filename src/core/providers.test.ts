@@ -39,6 +39,7 @@ describe('providers', () => {
     const store = addProviderToStore(
       { providers: [] },
       {
+        type: 'openai',
         name: 'deepseek',
         base_url: 'https://api.deepseek.com/v1',
         api_key: 'sk-test-123456',
@@ -54,12 +55,14 @@ describe('providers', () => {
     const store = {
       providers: [
         {
+          type: 'openai',
           name: 'deepseek',
           base_url: 'https://api.deepseek.com/v1',
           api_key: 'sk-test-123456',
           model: 'deepseek-chat',
         },
         {
+          type: 'anthropic',
           name: 'claude',
           base_url: 'https://proxy.example/v1',
           api_key: 'sk-test-abcdef',
@@ -78,6 +81,7 @@ describe('providers', () => {
       JSON.stringify({
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
@@ -98,6 +102,7 @@ describe('providers', () => {
         {
           providers: [
             {
+              type: 'openai',
               name: 'deepseek',
               base_url: 'https://api.deepseek.com/v1',
               api_key: 'sk-test-123456',
@@ -107,6 +112,7 @@ describe('providers', () => {
           default_provider: 'deepseek',
         },
         {
+          type: 'openai',
           name: 'deepseek',
           base_url: 'https://api.deepseek.com/v1',
           api_key: 'sk-test-duplicate',
@@ -122,6 +128,7 @@ describe('providers', () => {
     const store = {
       providers: [
         {
+          type: 'openai',
           name: 'deepseek',
           base_url: 'https://api.deepseek.com/v1',
           api_key: 'sk-test-123456',

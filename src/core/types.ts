@@ -5,7 +5,10 @@ export interface BookMeta {
   lang: string;
 }
 
+export type ProviderType = 'anthropic' | 'openai';
+
 export interface ProviderConfig {
+  type: ProviderType;
   name: string;
   base_url: string;
   api_key: string;

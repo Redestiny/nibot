@@ -4,22 +4,11 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createResponseMock, clientConfigs } = vi.hoisted(() => ({
-  createResponseMock: vi.fn(),
-  clientConfigs: [] as Array<{ apiKey: string; baseURL: string }>,
+const { fetchMock } = vi.hoisted(() => ({
+  fetchMock: vi.fn(),
 }));
 
-vi.mock('openai', () => ({
-  default: class FakeOpenAI {
-    public readonly responses = {
-      create: createResponseMock,
-    };
-
-    public constructor(config: { apiKey: string; baseURL: string }) {
-      clientConfigs.push(config);
-    }
-  },
-}));
+vi.stubGlobal('fetch', fetchMock);
 
 import { OpenAiCompatibleLlmClient } from './llm.js';
 import {
@@ -32,6 +21,7 @@ import {
 const providerStore = {
   providers: [
     {
+      type: 'openai' as const,
       name: 'deepseek',
       base_url: 'https://api.deepseek.com/v1',
       api_key: 'sk-test-123456',
@@ -50,8 +40,7 @@ const tempDirs: string[] = [];
 
 describe('OpenAiCompatibleLlmClient', () => {
   beforeEach(() => {
-    createResponseMock.mockReset();
-    clientConfigs.splice(0, clientConfigs.length);
+    fetchMock.mockReset();
   });
 
   afterEach(async () => {
@@ -66,22 +55,31 @@ describe('OpenAiCompatibleLlmClient', () => {
   it('generates text and forwards Responses API request fields', async () => {
     const { provider, configPath } = await createConfiguredProvider();
 
-    createResponseMock.mockResolvedValue({
-      output_text: '你好世界',
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ output_text: '你好世界' }),
+      text: async () => '{"output_text": "你好世界"}',
     });
 
     const client = new OpenAiCompatibleLlmClient();
     await expect(client.generateText({ provider, messages })).resolves.toBe('你好世界');
 
     expect(await readFile(configPath, 'utf8')).toContain('"api_key": "sk-test-123456"');
-    expect(clientConfigs).toEqual([
-      {
-        apiKey: provider.api_key,
-        baseURL: provider.base_url,
-      },
-    ]);
-    expect(createResponseMock).toHaveBeenCalledWith({
-      model: provider.model,
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepseek.com/v1/responses',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer sk-test-123456',
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    const callBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(callBody).toEqual({
+      model: 'deepseek-chat',
       instructions: '系统提示',
       input: [{ role: 'user', content: '继续写作' }],
     });
@@ -90,15 +88,15 @@ describe('OpenAiCompatibleLlmClient', () => {
   it('streams only non-empty text chunks', async () => {
     const { provider } = await createConfiguredProvider();
 
-    createResponseMock.mockResolvedValue(
-      toAsyncIterable([
-        { type: 'response.created' },
-        { type: 'response.output_text.delta', delta: '' },
-        { type: 'response.output_text.delta', delta: '片段一' },
-        { type: 'response.completed' },
-        { type: 'response.output_text.delta', delta: '片段二' },
-      ]),
-    );
+    const streamEvents = [
+      'event: response.created\ndata: {"type":"response.created"}\n\n',
+      'data: {"type":"response.output_text.delta","delta":""}\n\n',
+      'data: {"type":"response.output_text.delta","delta":"片段一"}\n\n',
+      'event: response.completed\ndata: {"type":"response.completed"}\n\n',
+      'data: {"type":"response.output_text.delta","delta":"片段二"}\n\n',
+    ];
+
+    fetchMock.mockResolvedValue(createStreamingResponse(streamEvents));
 
     const client = new OpenAiCompatibleLlmClient();
     await expect(collectStream(client.streamText({ provider, messages }))).resolves.toEqual([
@@ -106,8 +104,16 @@ describe('OpenAiCompatibleLlmClient', () => {
       '片段二',
     ]);
 
-    expect(createResponseMock).toHaveBeenCalledWith({
-      model: provider.model,
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepseek.com/v1/responses',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+
+    const callBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(callBody).toEqual({
+      model: 'deepseek-chat',
       instructions: '系统提示',
       input: [{ role: 'user', content: '继续写作' }],
       stream: true,
@@ -117,8 +123,11 @@ describe('OpenAiCompatibleLlmClient', () => {
   it('rejects empty Responses API outputs', async () => {
     const { provider } = await createConfiguredProvider();
 
-    createResponseMock.mockResolvedValue({
-      output_text: '',
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ output_text: '' }),
+      text: async () => '{"output_text": ""}',
     });
 
     const client = new OpenAiCompatibleLlmClient();
@@ -133,7 +142,11 @@ describe('OpenAiCompatibleLlmClient', () => {
   it('wraps completion failures in a NibotError', async () => {
     const { provider } = await createConfiguredProvider();
 
-    createResponseMock.mockRejectedValue(new Error('upstream failed'));
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => 'Internal Server Error',
+    });
 
     const client = new OpenAiCompatibleLlmClient();
 
@@ -145,6 +158,24 @@ describe('OpenAiCompatibleLlmClient', () => {
   });
 });
 
+function createStreamingResponse(events: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const event of events) {
+        controller.enqueue(encoder.encode(event));
+      }
+      controller.close();
+    },
+  });
+
+  return {
+    ok: true,
+    status: 200,
+    body: stream,
+  } as Response;
+}
+
 async function collectStream(stream: AsyncIterable<string>): Promise<string[]> {
   const chunks: string[] = [];
 
@@ -153,12 +184,6 @@ async function collectStream(stream: AsyncIterable<string>): Promise<string[]> {
   }
 
   return chunks;
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-  for (const item of items) {
-    yield item;
-  }
 }
 
 async function createConfiguredProvider(): Promise<{

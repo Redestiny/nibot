@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { NibotError } from './errors.js';
-import type { ProviderConfig, ProviderStore } from './types.js';
+import type { ProviderConfig, ProviderStore, ProviderType } from './types.js';
 
 const CONFIG_DIRNAME = 'nibot';
 const CONFIG_FILENAME = 'config.json';
@@ -177,7 +177,20 @@ export function validateProviderConfig(input: unknown): ProviderConfig {
   }
 
   const candidate = input as Record<string, unknown>;
+
+  // Handle legacy configs without type field (default to openai)
+  let type: ProviderType = 'openai';
+  if (typeof candidate.type === 'string' && candidate.type.length > 0) {
+    if (candidate.type !== 'anthropic' && candidate.type !== 'openai') {
+      throw new NibotError(`Provider type "${candidate.type}" must be "anthropic" or "openai".`, {
+        code: 'INVALID_PROVIDER_CONFIG',
+      });
+    }
+    type = candidate.type as ProviderType;
+  }
+
   const provider: ProviderConfig = {
+    type,
     name: readNonEmptyString(candidate.name, 'Provider name'),
     base_url: readNonEmptyString(candidate.base_url, 'Provider base_url'),
     api_key: readNonEmptyString(candidate.api_key, 'Provider api_key'),

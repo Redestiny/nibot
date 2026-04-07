@@ -1,5 +1,5 @@
 import { CHARACTERS_FILENAME, WORLD_STATE_FILENAME } from './constants.js';
-import { OpenAiCompatibleLlmClient } from './llm.js';
+import { MultiLlmClient } from './llm.js';
 import { buildCompleteMessages, buildSyncMessages, buildWriteMessages } from './prompts.js';
 import {
   addProviderToStore,
@@ -47,7 +47,7 @@ export interface AppDependencies {
 }
 
 export function createNibotApp(dependencies: AppDependencies) {
-  const llmClient = dependencies.llmClient ?? new OpenAiCompatibleLlmClient();
+  const llmClient = dependencies.llmClient ?? new MultiLlmClient();
   const now = dependencies.now ?? (() => new Date());
 
   return {
