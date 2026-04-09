@@ -1,10 +1,13 @@
 {
-  "name": "nibot",
+  "name": "@redestiny/nibot",
   "version": "0.1.0",
   "description": "Local CLI MVP for AI-assisted long-form writing workflows.",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "bin": {
-    "nibot": "./dist/cli/index.js"
+    "nibot": "./dist/src/cli/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -15,8 +18,10 @@
     "node": ">=24"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.86.1",
     "commander": "^14.0.3",
-    "diff": "^8.0.4"
+    "diff": "^8.0.4",
+    "openai": "^6.34.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",

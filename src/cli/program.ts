@@ -26,13 +26,13 @@ export interface BuildCliOptions {
   now?: () => Date;
 }
 
-export function buildProgram(options: BuildCliOptions = {}): Command {
+export async function buildProgram(options: BuildCliOptions = {}): Promise<Command> {
   const io: CliStreams = {
     stdin: options.stdin ?? stdin,
     stdout: options.stdout ?? stdout,
     stderr: options.stderr ?? stderr,
   };
-  const app = createNibotApp({
+  const app = await createNibotApp({
     cwd: options.cwd ?? process.cwd(),
     homeDir: options.homeDir ?? homedir(),
     llmClient: options.llmClient,
@@ -312,7 +312,7 @@ export async function runCli(argv = process.argv, options: BuildCliOptions = {})
     stderr: options.stderr ?? stderr,
   };
 
-  const program = buildProgram(options);
+  const program = await buildProgram(options);
   program.exitOverride();
 
   try {

@@ -1,5 +1,5 @@
 import { CHARACTERS_FILENAME, WORLD_STATE_FILENAME } from './constants.js';
-import { MultiLlmClient } from './llm.js';
+import { LLMClient } from './llm/llm_wrapper.js';
 import { buildCompleteMessages, buildSyncMessages, buildWriteMessages } from './prompts.js';
 import {
   addProviderToStore,
@@ -46,9 +46,17 @@ export interface AppDependencies {
   now?: () => Date;
 }
 
-export function createNibotApp(dependencies: AppDependencies) {
-  const llmClient = dependencies.llmClient ?? new MultiLlmClient();
+export async function createNibotApp(dependencies: AppDependencies) {
+  let llmClient = dependencies.llmClient;
   const now = dependencies.now ?? (() => new Date());
+
+  const getLlmClient = async (): Promise<LlmClient> => {
+    if (!llmClient) {
+      const store = await loadProviderStore(dependencies.homeDir);
+      llmClient = new LLMClient(resolveProvider(store));
+    }
+    return llmClient;
+  };
 
   return {
     async createBook(bookId: string) {
@@ -124,7 +132,7 @@ export function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(llmClient, provider, messages, options.onText);
+      const content = await streamAndCollectText(await getLlmClient(), messages, options.onText);
       ensureNonEmptyGeneratedText(content, 'chapter');
       await writeChapterFile(target.path, content);
 
@@ -154,7 +162,7 @@ export function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(llmClient, provider, messages, options.onText);
+      const content = await streamAndCollectText(await getLlmClient(), messages, options.onText);
       ensureNonEmptyGeneratedText(content, 'chapter continuation');
       await appendChapterFile(target.path, content);
 
@@ -187,8 +195,7 @@ export function createNibotApp(dependencies: AppDependencies) {
       const characters = await readTrackedSetting(bookPath, CHARACTERS_FILENAME);
       const provider = await resolveProviderForApp(dependencies.homeDir, options.providerName);
 
-      const rawResponse = await llmClient.generateText({
-        provider,
+      const rawResponse = await (await getLlmClient()).generateText({
         messages: buildSyncMessages({
           settings,
           latestChapter,
@@ -237,13 +244,12 @@ async function resolveProviderForApp(homeDir: string, providerName?: string): Pr
 
 async function streamAndCollectText(
   llmClient: LlmClient,
-  provider: ProviderConfig,
   messages: ChatMessage[],
   onText?: (chunk: string) => void,
 ): Promise<string> {
   let content = '';
 
-  for await (const chunk of llmClient.streamText({ provider, messages })) {
+  for await (const chunk of llmClient.streamText({ messages })) {
     content += chunk;
     onText?.(chunk);
   }

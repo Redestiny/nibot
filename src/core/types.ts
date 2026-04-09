@@ -44,11 +44,12 @@ export interface SyncUpdate {
 }
 
 export interface LlmStreamRequest {
-  provider: ProviderConfig;
   messages: ChatMessage[];
 }
 
-export interface LlmGenerateRequest extends LlmStreamRequest {}
+export interface LlmGenerateRequest {
+  messages: ChatMessage[];
+}
 
 export interface LlmClient {
   streamText(request: LlmStreamRequest): AsyncIterable<string>;

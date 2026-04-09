@@ -46,7 +46,7 @@ describe('Nibot app integration', () => {
     const cwd = await createTempDir();
     const homeDir = await createTempDir();
     const llm = new FakeLlmClient(['第一段', '第二段'], '{"world_state":"# World State\\n","characters":"# Characters\\n"}');
-    const app = createNibotApp({ cwd, homeDir, llmClient: llm });
+    const app = await createNibotApp({ cwd, homeDir, llmClient: llm });
 
     await saveProviderStore(
       {
@@ -86,7 +86,7 @@ describe('Nibot app integration', () => {
     const cwd = await createTempDir();
     const homeDir = await createTempDir();
     const llm = new FakeLlmClient(['续写内容'], '{"world_state":"# World State\\n","characters":"# Characters\\n"}');
-    const app = createNibotApp({ cwd, homeDir, llmClient: llm });
+    const app = await createNibotApp({ cwd, homeDir, llmClient: llm });
 
     await saveProviderStore(
       {
@@ -132,7 +132,7 @@ describe('Nibot app integration', () => {
         summary: '更新了世界状态和角色状态',
       }),
     );
-    const app = createNibotApp({ cwd, homeDir, llmClient: llm });
+    const app = await createNibotApp({ cwd, homeDir, llmClient: llm });
 
     await saveProviderStore(
       {

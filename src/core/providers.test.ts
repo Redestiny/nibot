@@ -64,7 +64,7 @@ describe('providers', () => {
         {
           type: 'anthropic',
           name: 'claude',
-          base_url: 'https://proxy.example/v1',
+          base_url: 'https://proxy.example',
           api_key: 'sk-test-abcdef',
           model: 'claude-sonnet',
         },

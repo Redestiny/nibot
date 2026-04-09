@@ -43,6 +43,22 @@ describe('CLI integration', () => {
     const homeDir = await createTempDir();
     const stdout = new PassThrough();
     const stderr = new PassThrough();
+    const llm = new FakeCliLlm([], '');
+
+    await saveProviderStore(
+      {
+        providers: [
+          {
+            name: 'deepseek',
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-test-123456',
+            model: 'deepseek-chat',
+          },
+        ],
+        default_provider: 'deepseek',
+      },
+      homeDir,
+    );
 
     expect(
       await runCli(['node', 'nibot', 'book', 'create', 'alpha', '--json'], {
@@ -50,6 +66,7 @@ describe('CLI integration', () => {
         homeDir,
         stdout,
         stderr,
+        llmClient: llm,
       }),
     ).toBe(0);
 
@@ -67,6 +84,7 @@ describe('CLI integration', () => {
         homeDir,
         stdout: listStdout,
         stderr: new PassThrough(),
+        llmClient: llm,
       }),
     ).toBe(0);
 

@@ -1,6 +1,6 @@
 import type { createNibotApp } from '../core/app.js';
 
-type NibotApp = ReturnType<typeof createNibotApp>;
+type NibotApp = Awaited<ReturnType<typeof createNibotApp>>;
 type CreateBookResult = Awaited<ReturnType<NibotApp['createBook']>>;
 type ListBooksResult = Awaited<ReturnType<NibotApp['listBooks']>>;
 type BookStatusResult = Awaited<ReturnType<NibotApp['getBookStatus']>>;
