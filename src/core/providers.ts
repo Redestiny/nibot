@@ -21,9 +21,9 @@ function resolveConfigBaseDir(
 
 export function getProviderConfigPath(
   homeDir = homedir(),
-  xdgConfigHome = process.env.XDG_CONFIG_HOME,
+  xdgConfigHome?: string,
 ): string {
-  return join(resolveConfigBaseDir(homeDir, xdgConfigHome), CONFIG_DIRNAME, CONFIG_FILENAME);
+  return join(resolveConfigBaseDir(homeDir, xdgConfigHome ?? process.env.XDG_CONFIG_HOME), CONFIG_DIRNAME, CONFIG_FILENAME);
 }
 
 export async function loadProviderStore(
