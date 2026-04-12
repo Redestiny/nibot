@@ -28,9 +28,9 @@ export function getProviderConfigPath(
 
 export async function loadProviderStore(
   homeDir = homedir(),
-  xdgConfigHome?: string,
+  xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): Promise<ProviderStore> {
-  const configPath = getProviderConfigPath(homeDir, xdgConfigHome ?? process.env.XDG_CONFIG_HOME);
+  const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
 
   try {
     const raw = await readFile(configPath, 'utf8');
@@ -50,9 +50,9 @@ export async function loadProviderStore(
 export async function saveProviderStore(
   store: ProviderStore,
   homeDir = homedir(),
-  xdgConfigHome?: string,
+  xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): Promise<void> {
-  const configPath = getProviderConfigPath(homeDir, xdgConfigHome ?? process.env.XDG_CONFIG_HOME);
+  const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
   await mkdir(dirname(configPath), { recursive: true });
   await writeFile(configPath, `${JSON.stringify(store, null, 2)}\n`, 'utf8');
 }
