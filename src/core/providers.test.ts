@@ -28,7 +28,13 @@ afterEach(async () => {
 
 describe('providers', () => {
   it('resolves provider config path under ~/.config by default', () => {
-    expect(getProviderConfigPath('/tmp/home', undefined)).toBe('/tmp/home/.config/nibot/config.json');
+    const original = process.env.XDG_CONFIG_HOME;
+    delete process.env.XDG_CONFIG_HOME;
+    try {
+      expect(getProviderConfigPath('/tmp/home')).toBe('/tmp/home/.config/nibot/config.json');
+    } finally {
+      process.env.XDG_CONFIG_HOME = original;
+    }
   });
 
   it('resolves provider config path under XDG_CONFIG_HOME when provided', () => {
