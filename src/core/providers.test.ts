@@ -28,7 +28,7 @@ afterEach(async () => {
 
 describe('providers', () => {
   it('resolves provider config path under ~/.config by default', () => {
-    expect(getProviderConfigPath('/tmp/home')).toBe('/tmp/home/.config/nibot/config.json');
+    expect(getProviderConfigPath('/tmp/home', undefined)).toBe('/tmp/home/.config/nibot/config.json');
   });
 
   it('resolves provider config path under XDG_CONFIG_HOME when provided', () => {
