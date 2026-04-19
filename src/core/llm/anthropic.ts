@@ -24,7 +24,11 @@ export class AnthropicClient extends LlmClientBase {
     };
 
     if (system) {
-      body.system = system;
+      body.system = [{
+        type: 'text' as const,
+        text: system,
+        cache_control: { type: 'ephemeral' as const },
+      }];
     }
 
     return { body, streamOptions: {} };
