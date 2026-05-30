@@ -142,6 +142,19 @@ describe('buildCompleteMessages', () => {
     expect(messages[1].content).toContain('作者意图：');
     expect(messages[1].content).toContain('加入对话');
   });
+
+  it('prompts for complete chapter output, not continuation', () => {
+    const messages = buildCompleteMessages({
+      chapterNumber: 1,
+      settings: [],
+      chapter: makeChapter('0001.md', '原始内容'),
+    });
+
+    expect(messages[1].content).toContain('输出一个完整的章节正文');
+    expect(messages[1].content).toContain('输出要求');
+    expect(messages[1].content).not.toContain('续写要求');
+    expect(messages[1].content).not.toContain('追加到当前章节末尾');
+  });
 });
 
 describe('buildSyncMessages', () => {

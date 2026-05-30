@@ -1,6 +1,5 @@
 import {
   access,
-  appendFile,
   mkdir,
   readdir,
   readFile,
@@ -326,10 +325,6 @@ export async function resolveCompleteTarget(
 
 export async function writeChapterFile(path: string, content: string): Promise<void> {
   await writeFile(path, content, 'utf8');
-}
-
-export async function appendChapterFile(path: string, content: string): Promise<void> {
-  await appendFile(path, content, 'utf8');
 }
 
 export async function readTrackedSetting(

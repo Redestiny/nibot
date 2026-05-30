@@ -51,10 +51,10 @@ export function buildCompleteMessages(input: {
         `当前章节全文（${input.chapter.filename}）：\n${input.chapter.content.trim()}`,
         renderIntent(input.intent),
         [
-          '续写要求：',
-          '1. 只输出应追加到当前章节末尾的正文内容。',
-          '2. 不要重复已有内容，也不要重写前文。',
-          '3. 保持叙事连贯、人物状态一致，并承接当前章节结尾。',
+          '输出要求：',
+          '1. 参照当前已有章节全文，输出一个完整的章节正文。',
+          '2. 保持叙事连贯、人物行为一致，承接当前章节的结尾与情节走向。',
+          '3. 直接输出完整正文，不要追加、不要重复已有内容、不要输出说明文字。',
         ].join('\n'),
       ]
         .filter((section) => section.trim().length > 0)

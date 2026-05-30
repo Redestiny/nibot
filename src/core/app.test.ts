@@ -85,7 +85,7 @@ describe('Nibot app integration', () => {
   it('completes the latest or requested chapter and rejects missing targets', async () => {
     const cwd = await createTempDir();
     const homeDir = await createTempDir();
-    const llm = new FakeLlmClient(['续写内容'], '{"world_state":"# World State\\n","characters":"# Characters\\n"}');
+    const llm = new FakeLlmClient(['完整章节'], '{"world_state":"# World State\\n","characters":"# Characters\\n"}');
     const app = await createNibotApp({ cwd, homeDir, llmClient: llm });
 
     await saveProviderStore(
@@ -107,6 +107,9 @@ describe('Nibot app integration', () => {
     await writeFile(join(cwd, 'story', 'chapters', '0001.md'), '原始开头', 'utf8');
     await writeFile(join(cwd, 'story', 'chapters', '0002.md'), '第二章开头', 'utf8');
 
+    expect(await readFile(join(cwd, 'story', 'chapters', '0001.md'), 'utf8')).toBe('原始开头');
+    expect(await readFile(join(cwd, 'story', 'chapters', '0002.md'), 'utf8')).toBe('第二章开头');
+
     await app.completeChapter({ bookId: 'story' });
     await app.completeChapter({ bookId: 'story', chapter: 1 });
     await expect(app.completeChapter({ bookId: 'story', chapter: 9 })).rejects.toThrow(
@@ -114,10 +117,10 @@ describe('Nibot app integration', () => {
     );
 
     expect(await readFile(join(cwd, 'story', 'chapters', '0002.md'), 'utf8')).toBe(
-      '第二章开头续写内容',
+      '完整章节',
     );
     expect(await readFile(join(cwd, 'story', 'chapters', '0001.md'), 'utf8')).toBe(
-      '原始开头续写内容',
+      '完整章节',
     );
   });
 

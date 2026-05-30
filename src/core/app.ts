@@ -21,7 +21,6 @@ import type {
   WriteChapterOptions,
 } from './types.js';
 import {
-  appendChapterFile,
   createBookWorkspace,
   getBookStatus,
   getContextPrevChapters,
@@ -163,8 +162,8 @@ export async function createNibotApp(dependencies: AppDependencies) {
       });
 
       const content = await streamAndCollectText(await getLlmClient(), messages, options.onText);
-      ensureNonEmptyGeneratedText(content, 'chapter continuation');
-      await appendChapterFile(target.path, content);
+      ensureNonEmptyGeneratedText(content, 'complete chapter');
+      await writeChapterFile(target.path, content);
 
       return {
         action: 'complete',
