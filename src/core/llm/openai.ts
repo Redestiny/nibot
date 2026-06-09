@@ -44,25 +44,27 @@ export class OpenAiClient extends LlmClientBase {
   }
 
   protected async callApi(body: Record<string, unknown>): Promise<unknown> {
-    const openai = this.client ?? new OpenAI({
-      baseURL: this.provider.base_url,
-      apiKey: this.provider.api_key,
-    });
-
-    return (openai as OpenAI).responses.create(body as Parameters<(typeof openai)['responses']['create']>[0]);
+    const openai = this.getClient();
+    return openai.responses.create(
+      body as Parameters<(typeof openai)['responses']['create']>[0],
+    );
   }
 
   protected async callStreamApi(
     body: Record<string, unknown>,
   ): Promise<unknown> {
-    const openai = this.client ?? new OpenAI({
+    const openai = this.getClient();
+    return openai.responses.create(
+      body as Parameters<(typeof openai)['responses']['create']>[0],
+    );
+  }
+
+  private getClient(): OpenAI {
+    this.client ??= new OpenAI({
       baseURL: this.provider.base_url,
       apiKey: this.provider.api_key,
     });
-
-    return (openai as OpenAI).responses.create(
-      body as Parameters<(typeof openai)['responses']['create']>[0],
-    );
+    return this.client;
   }
 }
 

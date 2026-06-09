@@ -1,7 +1,7 @@
 import type { LlmClient, LlmGenerateRequest, LlmStreamRequest, ProviderConfig } from '../types.js';
 
-import { Anthropic } from '@anthropic-ai/sdk';
-import { OpenAI } from 'openai';
+import type { Anthropic } from '@anthropic-ai/sdk';
+import type { OpenAI } from 'openai';
 
 import { LlmClientBase } from './base.js';
 import { AnthropicClient } from './anthropic.js';

@@ -1,4 +1,4 @@
-import { SYSTEM_ROLE_PROMPT } from './constants.js';
+import { CHARACTERS_FILENAME, SYSTEM_ROLE_PROMPT, WORLD_STATE_FILENAME } from './constants.js';
 import type { ChatMessage, LoadedChapter, LoadedSetting } from './types.js';
 
 export function buildWriteMessages(input: {
@@ -90,7 +90,13 @@ export function buildSyncMessages(input: {
       role: 'user',
       content: [
         '当前设定全文：',
-        renderSettings(input.settings),
+        renderSettings(
+          input.settings.filter(
+            (setting) =>
+              setting.filename !== WORLD_STATE_FILENAME &&
+              setting.filename !== CHARACTERS_FILENAME,
+          ),
+        ),
         '',
         `当前 world_state.md：\n${input.worldState.trim()}`,
         '',

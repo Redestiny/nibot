@@ -15,6 +15,7 @@ import type {
   ChatMessage,
   CompleteChapterOptions,
   LlmClient,
+  LoadedSetting,
   PrepareSyncOptions,
   ProviderConfig,
   SyncUpdate,
@@ -29,7 +30,6 @@ import {
   loadRecentChapters,
   loadSettings,
   readBookMeta,
-  readTrackedSetting,
   resolveBookPath,
   resolveCompleteTarget,
   resolveWriteTarget,
@@ -49,10 +49,9 @@ export async function createNibotApp(dependencies: AppDependencies) {
   let llmClient = dependencies.llmClient;
   const now = dependencies.now ?? (() => new Date());
 
-  const getLlmClient = async (): Promise<LlmClient> => {
+  const getLlmClient = async (provider: ProviderConfig): Promise<LlmClient> => {
     if (!llmClient) {
-      const store = await loadProviderStore(dependencies.homeDir);
-      llmClient = new LLMClient(resolveProvider(store));
+      llmClient = new LLMClient(provider);
     }
     return llmClient;
   };
@@ -131,7 +130,11 @@ export async function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(await getLlmClient(), messages, options.onText);
+      const content = await streamAndCollectText(
+        await getLlmClient(provider),
+        messages,
+        options.onText,
+      );
       ensureNonEmptyGeneratedText(content, 'chapter');
       await writeChapterFile(target.path, content);
 
@@ -161,7 +164,11 @@ export async function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(await getLlmClient(), messages, options.onText);
+      const content = await streamAndCollectText(
+        await getLlmClient(provider),
+        messages,
+        options.onText,
+      );
       ensureNonEmptyGeneratedText(content, 'complete chapter');
       await writeChapterFile(target.path, content);
 
@@ -190,11 +197,11 @@ export async function createNibotApp(dependencies: AppDependencies) {
       const latestChapterTarget = await resolveCompleteTarget(bookPath);
       const latestChapter = await loadChapter(bookPath, latestChapterTarget.number);
       const settings = await loadSettings(bookPath);
-      const worldState = await readTrackedSetting(bookPath, WORLD_STATE_FILENAME);
-      const characters = await readTrackedSetting(bookPath, CHARACTERS_FILENAME);
+      const worldState = getSettingContent(settings, WORLD_STATE_FILENAME);
+      const characters = getSettingContent(settings, CHARACTERS_FILENAME);
       const provider = await resolveProviderForApp(dependencies.homeDir, options.providerName);
 
-      const rawResponse = await (await getLlmClient()).generateText({
+      const rawResponse = await (await getLlmClient(provider)).generateText({
         messages: buildSyncMessages({
           settings,
           latestChapter,
@@ -239,6 +246,16 @@ export async function createNibotApp(dependencies: AppDependencies) {
 async function resolveProviderForApp(homeDir: string, providerName?: string): Promise<ProviderConfig> {
   const store = await loadProviderStore(homeDir);
   return resolveProvider(store, providerName);
+}
+
+function getSettingContent(settings: LoadedSetting[], filename: string): string {
+  const setting = settings.find((item) => item.filename === filename);
+  if (!setting) {
+    throw new NibotError(`Missing ${filename} in settings.`, {
+      code: 'INVALID_BOOK_WORKSPACE',
+    });
+  }
+  return setting.content;
 }
 
 async function streamAndCollectText(

@@ -38,7 +38,8 @@ export class AnthropicClient extends LlmClientBase {
     const resp = response as {
       content: Array<{ type: string; text?: string }>;
     };
-    return resp.content[0]?.type === 'text' ? (resp.content[0].text ?? '') : '';
+    const textBlock = resp.content.find((block) => block.type === 'text');
+    return textBlock?.text ?? '';
   }
 
   protected extractStreamDelta(event: unknown): string | null {
@@ -50,12 +51,8 @@ export class AnthropicClient extends LlmClientBase {
   }
 
   protected async callApi(body: Record<string, unknown>): Promise<unknown> {
-    const anthropic = this.client ?? new Anthropic({
-      baseURL: this.provider.base_url,
-      apiKey: this.provider.api_key,
-    });
-
-    return (anthropic as Anthropic).messages.create(
+    const anthropic = this.getClient();
+    return anthropic.messages.create(
       body as unknown as Parameters<(typeof anthropic)['messages']['create']>[0],
     );
   }
@@ -63,14 +60,18 @@ export class AnthropicClient extends LlmClientBase {
   protected async callStreamApi(
     body: Record<string, unknown>,
   ): Promise<unknown> {
-    const anthropic = this.client ?? new Anthropic({
+    const anthropic = this.getClient();
+    return anthropic.messages.stream(
+      body as Parameters<(typeof anthropic)['messages']['stream']>[0],
+    );
+  }
+
+  private getClient(): Anthropic {
+    this.client ??= new Anthropic({
       baseURL: this.provider.base_url,
       apiKey: this.provider.api_key,
     });
-
-    return (anthropic as Anthropic).messages.stream(
-      body as Parameters<(typeof anthropic)['messages']['stream']>[0],
-    );
+    return this.client;
   }
 }
 
