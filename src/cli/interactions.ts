@@ -18,15 +18,15 @@ export async function promptForProvider(
   });
 
   try {
-    let type: ProviderType = 'openai';
-    let typeAnswer = (await rl.question('Provider type (openai/anthropic): ')).trim().toLowerCase();
-
-    if (typeAnswer !== 'anthropic' && typeAnswer !== 'openai') {
+    let type: ProviderType;
+    while (true) {
+      const typeAnswer = (await rl.question('Provider type (openai/anthropic): ')).trim().toLowerCase();
+      if (typeAnswer === 'openai' || typeAnswer === 'anthropic') {
+        type = typeAnswer;
+        break;
+      }
       io.stderr.write(`Invalid provider type "${typeAnswer}". Must be "openai" or "anthropic".\n`);
-      typeAnswer = (await rl.question('Provider type (openai/anthropic): ')).trim().toLowerCase();
     }
-
-    type = typeAnswer as ProviderType;
 
     const name = (await rl.question('Provider name: ')).trim();
     const baseUrl = (await rl.question('Base URL: ')).trim();

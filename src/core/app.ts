@@ -46,14 +46,25 @@ export interface AppDependencies {
 }
 
 export async function createNibotApp(dependencies: AppDependencies) {
-  let llmClient = dependencies.llmClient;
   const now = dependencies.now ?? (() => new Date());
 
+  // When a test injects a client, always use it (no per-provider caching).
+  // Otherwise, lazy-create and cache LLM clients per provider name so that
+  // --provider overrides actually switch to a different client.
+  const injectedClient = dependencies.llmClient;
+  const llmClients = new Map<string, LlmClient>();
+
   const getLlmClient = async (provider: ProviderConfig): Promise<LlmClient> => {
-    if (!llmClient) {
-      llmClient = new LLMClient(provider);
+    if (injectedClient) {
+      return injectedClient;
     }
-    return llmClient;
+    const existing = llmClients.get(provider.name);
+    if (existing) {
+      return existing;
+    }
+    const client = new LLMClient(provider);
+    llmClients.set(provider.name, client);
+    return client;
   };
 
   return {
