@@ -18,21 +18,25 @@ export abstract class LlmClientBase implements LlmClient {
   public async *streamText(request: LlmStreamRequest): AsyncIterable<string> {
     const { body, streamOptions } = this.buildRequest(request.messages);
 
-    const response = await this.callStreamApi({
-      ...body,
-      ...streamOptions,
-    });
-
-    const stream = response as unknown as AsyncIterable<unknown>;
-
     try {
+      const response = await this.callStreamApi({
+        ...body,
+        ...streamOptions,
+      });
+
+      const stream = response as unknown as AsyncIterable<unknown>;
+
       for await (const event of stream) {
+        this.inspectStreamEvent(event);
         const delta = this.extractStreamDelta(event);
         if (delta) {
           yield delta;
         }
       }
     } catch (error) {
+      if (error instanceof NibotError) {
+        throw error;
+      }
       throw new NibotError(`Streaming completion failed via provider "${this.provider.name}".`, {
         code: 'LLM_STREAM_FAILED',
         cause: error,
@@ -45,6 +49,7 @@ export abstract class LlmClientBase implements LlmClient {
 
     try {
       const response = await this.callApi(body);
+      this.checkResponse(response);
       const text = this.extractText(response);
 
       if (text.length === 0) {
@@ -70,4 +75,18 @@ export abstract class LlmClientBase implements LlmClient {
   protected abstract callStreamApi(
     body: Record<string, unknown>,
   ): Promise<unknown>;
+
+  // Subclasses may throw here to reject a non-streaming response (e.g. truncation).
+  protected checkResponse(_response: unknown): void {}
+
+  // Subclasses may throw here to abort a stream on a fatal event (e.g. truncation).
+  protected inspectStreamEvent(_event: unknown): void {}
+
+  protected truncationError(): NibotError {
+    return new NibotError(
+      `Provider "${this.provider.name}" stopped early: the response hit the max_tokens limit. ` +
+        'Increase "max_tokens" for this provider in the nibot config.',
+      { code: 'LLM_RESPONSE_TRUNCATED' },
+    );
+  }
 }

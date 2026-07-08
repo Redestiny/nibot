@@ -5,7 +5,7 @@ import type { ChatMessage, ProviderConfig } from '../types.js';
 import { LlmClientBase } from './base.js';
 
 export class AnthropicClient extends LlmClientBase {
-  private static readonly DEFAULT_MAX_TOKENS = 4096;
+  private static readonly DEFAULT_MAX_TOKENS = 8192;
 
   constructor(provider: ProviderConfig, private client?: Anthropic) {
     super(provider);
@@ -20,7 +20,7 @@ export class AnthropicClient extends LlmClientBase {
     const body: Record<string, unknown> = {
       model: this.provider.model,
       messages: nonSystemMessages,
-      max_tokens: AnthropicClient.DEFAULT_MAX_TOKENS,
+      max_tokens: this.provider.max_tokens ?? AnthropicClient.DEFAULT_MAX_TOKENS,
     };
 
     if (system) {
@@ -48,6 +48,20 @@ export class AnthropicClient extends LlmClientBase {
       return e.delta.text;
     }
     return null;
+  }
+
+  protected override checkResponse(response: unknown): void {
+    const resp = response as { stop_reason?: string };
+    if (resp.stop_reason === 'max_tokens') {
+      throw this.truncationError();
+    }
+  }
+
+  protected override inspectStreamEvent(event: unknown): void {
+    const e = event as { type: string; delta?: { stop_reason?: string } };
+    if (e.type === 'message_delta' && e.delta?.stop_reason === 'max_tokens') {
+      throw this.truncationError();
+    }
   }
 
   protected async callApi(body: Record<string, unknown>): Promise<unknown> {

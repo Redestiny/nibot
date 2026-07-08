@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -13,6 +13,7 @@ import {
   resolveProvider,
   saveProviderStore,
   setDefaultProviderInStore,
+  validateProviderConfig,
 } from './providers.js';
 
 const tempDirs: string[] = [];
@@ -150,6 +151,35 @@ describe('providers', () => {
       '"default_provider": "deepseek"',
     );
     await expect(loadProviderStore(homeDir, xdgConfigHome)).resolves.toEqual(store);
+  });
+
+  it('writes the config file readable by the owner only', async () => {
+    const homeDir = await createTempDir();
+    const xdgConfigHome = join(homeDir, 'custom-config');
+
+    await saveProviderStore({ providers: [] }, homeDir, xdgConfigHome);
+
+    const { mode } = await stat(join(xdgConfigHome, 'nibot', 'config.json'));
+    expect(mode & 0o777).toBe(0o600);
+  });
+
+  it('accepts an optional positive integer max_tokens and rejects invalid values', () => {
+    const base = {
+      type: 'anthropic',
+      name: 'claude',
+      base_url: 'https://proxy.example',
+      api_key: 'sk-test-abcdef',
+      model: 'claude-sonnet',
+    };
+
+    expect(validateProviderConfig({ ...base, max_tokens: 16000 }).max_tokens).toBe(16000);
+    expect(validateProviderConfig(base).max_tokens).toBeUndefined();
+    expect(() => validateProviderConfig({ ...base, max_tokens: 0 })).toThrow(
+      'Provider max_tokens must be a positive integer',
+    );
+    expect(() => validateProviderConfig({ ...base, max_tokens: '4096' })).toThrow(
+      'Provider max_tokens must be a positive integer',
+    );
   });
 });
 

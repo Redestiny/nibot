@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -54,7 +54,9 @@ export async function saveProviderStore(
 ): Promise<void> {
   const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
   await mkdir(dirname(configPath), { recursive: true });
-  await writeFile(configPath, `${JSON.stringify(store, null, 2)}\n`, 'utf8');
+  // The store contains plaintext API keys; keep it readable by the owner only.
+  await writeFile(configPath, `${JSON.stringify(store, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  await chmod(configPath, 0o600);
 }
 
 export function addProviderToStore(
@@ -196,6 +198,15 @@ export function validateProviderConfig(input: unknown): ProviderConfig {
     api_key: readNonEmptyString(candidate.api_key, 'Provider api_key'),
     model: readNonEmptyString(candidate.model, 'Provider model'),
   };
+
+  if (candidate.max_tokens !== undefined) {
+    if (!Number.isInteger(candidate.max_tokens) || (candidate.max_tokens as number) <= 0) {
+      throw new NibotError('Provider max_tokens must be a positive integer.', {
+        code: 'INVALID_PROVIDER_CONFIG',
+      });
+    }
+    provider.max_tokens = candidate.max_tokens as number;
+  }
 
   return provider;
 }

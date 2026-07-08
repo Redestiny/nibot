@@ -89,7 +89,7 @@ function extractJsonBlock(raw: string): string {
   return raw;
 }
 
-function ensureTrailingNewline(value: string): string {
+export function ensureTrailingNewline(value: string): string {
   return value.endsWith('\n') ? value : `${value}\n`;
 }
 

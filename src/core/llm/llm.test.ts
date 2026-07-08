@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AnthropicClient } from './anthropic.js';
 import { OpenAiClient } from './openai.js';
 import {
   getProviderConfigPath,
@@ -129,7 +130,126 @@ describe('OpenAiClient', () => {
       message: 'Completion failed via provider "deepseek".',
     });
   });
+
+  it('wraps stream connection failures in a NibotError', async () => {
+    const { provider } = await createConfiguredProvider();
+
+    const mockClient = {
+      responses: {
+        create: vi.fn().mockRejectedValue(new Error('connect ECONNREFUSED')),
+      },
+    };
+
+    const client = new OpenAiClient(provider, mockClient as any);
+
+    await expect(collectStream(client.streamText({ messages }))).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'LLM_STREAM_FAILED',
+      message: 'Streaming completion failed via provider "deepseek".',
+    });
+  });
+
+  it('rejects responses truncated by max_output_tokens', async () => {
+    const { provider } = await createConfiguredProvider();
+
+    const mockClient = {
+      responses: {
+        create: vi.fn().mockResolvedValue({
+          output_text: '被截断的内容',
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+        }),
+      },
+    };
+
+    const client = new OpenAiClient(provider, mockClient as any);
+
+    await expect(client.generateText({ messages })).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'LLM_RESPONSE_TRUNCATED',
+    });
+  });
 });
+
+describe('AnthropicClient', () => {
+  const provider = {
+    type: 'anthropic' as const,
+    name: 'claude',
+    base_url: 'https://proxy.example',
+    api_key: 'sk-test-abcdef',
+    model: 'claude-sonnet',
+    max_tokens: 1024,
+  };
+
+  it('sends configured max_tokens and extracts text', async () => {
+    const mockClient = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: 'text', text: '你好世界' }],
+          stop_reason: 'end_turn',
+        }),
+      },
+    };
+
+    const client = new AnthropicClient(provider, mockClient as any);
+
+    expect(await client.generateText({ messages })).toBe('你好世界');
+    expect(mockClient.messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        max_tokens: 1024,
+        system: [
+          { type: 'text', text: '系统提示', cache_control: { type: 'ephemeral' } },
+        ],
+      }),
+    );
+  });
+
+  it('rejects responses truncated by max_tokens', async () => {
+    const mockClient = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: 'text', text: '被截断的内容' }],
+          stop_reason: 'max_tokens',
+        }),
+      },
+    };
+
+    const client = new AnthropicClient(provider, mockClient as any);
+
+    await expect(client.generateText({ messages })).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'LLM_RESPONSE_TRUNCATED',
+    });
+  });
+
+  it('rejects streams truncated by max_tokens', async () => {
+    async function* generateEvents() {
+      yield { type: 'content_block_delta', delta: { type: 'text_delta', text: '开头片段' } };
+      yield { type: 'message_delta', delta: { stop_reason: 'max_tokens' } };
+    }
+
+    const mockClient = {
+      messages: {
+        stream: vi.fn().mockReturnValue(generateEvents()),
+      },
+    };
+
+    const client = new AnthropicClient(provider, mockClient as any);
+
+    await expect(collectStream(client.streamText({ messages }))).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'LLM_RESPONSE_TRUNCATED',
+    });
+  });
+});
+
+async function collectStream(stream: AsyncIterable<string>): Promise<string[]> {
+  const chunks: string[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return chunks;
+}
 
 async function createConfiguredProvider(): Promise<{
   provider: Awaited<ReturnType<typeof resolveProvider>>;

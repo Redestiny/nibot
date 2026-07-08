@@ -220,6 +220,66 @@ describe('CLI integration', () => {
       await readFile(join(cwd, 'alpha', 'settings', 'world_state.md'), 'utf8'),
     ).toContain('新世界状态');
   });
+
+  it('applies sync without confirmation when --yes is passed', async () => {
+    const cwd = await createTempDir();
+    const homeDir = await createTempDir();
+    const llm = new FakeCliLlm(
+      ['写作文本'],
+      JSON.stringify({
+        world_state: '# World State\n\n自动应用的状态\n',
+        characters: '# Characters\n',
+      }),
+    );
+
+    await saveProviderStore(
+      {
+        providers: [
+          {
+            name: 'deepseek',
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-test-123456',
+            model: 'deepseek-chat',
+          },
+        ],
+        default_provider: 'deepseek',
+      },
+      homeDir,
+    );
+
+    await runCli(['node', 'nibot', 'book', 'create', 'alpha'], {
+      cwd,
+      homeDir,
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+
+    await runCli(['node', 'nibot', 'write', 'alpha'], {
+      cwd,
+      homeDir,
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      llmClient: llm,
+    });
+
+    const stdout = new PassThrough();
+    expect(
+      await runCli(['node', 'nibot', 'sync', 'alpha', '--yes', '--json'], {
+        cwd,
+        homeDir,
+        stdout,
+        stderr: new PassThrough(),
+        llmClient: llm,
+      }),
+    ).toBe(0);
+
+    expect(JSON.parse(await streamToString(stdout))).toMatchObject({
+      applied: true,
+    });
+    expect(
+      await readFile(join(cwd, 'alpha', 'settings', 'world_state.md'), 'utf8'),
+    ).toContain('自动应用的状态');
+  });
 });
 
 async function createTempDir(): Promise<string> {

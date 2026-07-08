@@ -32,6 +32,8 @@ nibot provider add    #开始交互式添加API提供商
 ```
 配置保存在 `~/.config/nibot`，所有书籍项目共享此配置。
 
+可在 `config.json` 中为 provider 添加可选的 `max_tokens` 字段，控制单次生成的最大输出 token 数（anthropic 类型默认 8192）。输出因达到上限被截断时会报错提示，不会静默写入半截内容。
+
 ---
 
 ## 核心机制
@@ -53,7 +55,7 @@ nibot provider add    #开始交互式添加API提供商
 | `nibot status <bookid>` | 显示书籍状态（章节数、最新章节） |
 | `nibot write <bookid> [--chapter <number>]` | 生成下一章或指定章节内容 |
 | `nibot complete <bookid> [--chapter <number>]` | 补全最新章节或指定章节 |
-| `nibot sync <bookid> ` | 基于最新章节生成设定变更 diff，确认后应用 |
+| `nibot sync <bookid> [--yes]` | 基于最新章节生成设定变更 diff，确认后应用（`--yes` 跳过确认） |
 | `nibot provider add` | 交互式添加 provider |
 | `nibot provider list` | 列出所有 provider |
 | `nibot provider set-default <name>` | 设置默认 provider |

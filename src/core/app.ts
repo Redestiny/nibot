@@ -10,7 +10,7 @@ import {
   setDefaultProviderInStore,
   validateProviderConfig,
 } from './providers.js';
-import { buildSyncDiff, parseSyncUpdate } from './sync.js';
+import { buildSyncDiff, ensureTrailingNewline, parseSyncUpdate } from './sync.js';
 import type {
   ChatMessage,
   CompleteChapterOptions,
@@ -47,24 +47,28 @@ export interface AppDependencies {
 
 export async function createNibotApp(dependencies: AppDependencies) {
   const now = dependencies.now ?? (() => new Date());
+  const clientCache = new Map<string, LlmClient>();
 
   // When a test injects a client, always use it (no per-provider caching).
   // Otherwise, lazy-create and cache LLM clients per provider name so that
   // --provider overrides actually switch to a different client.
-  const injectedClient = dependencies.llmClient;
-  const llmClients = new Map<string, LlmClient>();
+  const resolveProviderAndClient = async (
+    providerName?: string,
+  ): Promise<{ provider: ProviderConfig; client: LlmClient }> => {
+    const store = await loadProviderStore(dependencies.homeDir);
+    const provider = resolveProvider(store, providerName);
 
-  const getLlmClient = async (provider: ProviderConfig): Promise<LlmClient> => {
-    if (injectedClient) {
-      return injectedClient;
+    if (dependencies.llmClient) {
+      return { provider, client: dependencies.llmClient };
     }
-    const existing = llmClients.get(provider.name);
-    if (existing) {
-      return existing;
+
+    let client = clientCache.get(provider.name);
+    if (!client) {
+      client = new LLMClient(provider);
+      clientCache.set(provider.name, client);
     }
-    const client = new LLMClient(provider);
-    llmClients.set(provider.name, client);
-    return client;
+
+    return { provider, client };
   };
 
   return {
@@ -132,7 +136,7 @@ export async function createNibotApp(dependencies: AppDependencies) {
         bookPath,
         await getContextPrevChapters(bookPath),
       );
-      const provider = await resolveProviderForApp(dependencies.homeDir, options.providerName);
+      const { provider, client } = await resolveProviderAndClient(options.providerName);
 
       const messages = buildWriteMessages({
         chapterNumber: target.number,
@@ -141,11 +145,7 @@ export async function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(
-        await getLlmClient(provider),
-        messages,
-        options.onText,
-      );
+      const content = await streamAndCollectText(client, messages, options.onText);
       ensureNonEmptyGeneratedText(content, 'chapter');
       await writeChapterFile(target.path, content);
 
@@ -166,7 +166,7 @@ export async function createNibotApp(dependencies: AppDependencies) {
       const target = await resolveCompleteTarget(bookPath, options.chapter);
       const settings = await loadSettings(bookPath);
       const chapter = await loadChapter(bookPath, target.number);
-      const provider = await resolveProviderForApp(dependencies.homeDir, options.providerName);
+      const { provider, client } = await resolveProviderAndClient(options.providerName);
 
       const messages = buildCompleteMessages({
         chapterNumber: target.number,
@@ -175,11 +175,7 @@ export async function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(
-        await getLlmClient(provider),
-        messages,
-        options.onText,
-      );
+      const content = await streamAndCollectText(client, messages, options.onText);
       ensureNonEmptyGeneratedText(content, 'complete chapter');
       await writeChapterFile(target.path, content);
 
@@ -210,9 +206,9 @@ export async function createNibotApp(dependencies: AppDependencies) {
       const settings = await loadSettings(bookPath);
       const worldState = getSettingContent(settings, WORLD_STATE_FILENAME);
       const characters = getSettingContent(settings, CHARACTERS_FILENAME);
-      const provider = await resolveProviderForApp(dependencies.homeDir, options.providerName);
+      const { provider, client } = await resolveProviderAndClient(options.providerName);
 
-      const rawResponse = await (await getLlmClient(provider)).generateText({
+      const rawResponse = await client.generateText({
         messages: buildSyncMessages({
           settings,
           latestChapter,
@@ -243,8 +239,8 @@ export async function createNibotApp(dependencies: AppDependencies) {
 
     async applySync(bookId: string, update: SyncUpdate) {
       const bookPath = await resolveBookPath(dependencies.cwd, bookId);
-      await writeTrackedSetting(bookPath, WORLD_STATE_FILENAME, update.world_state);
-      await writeTrackedSetting(bookPath, CHARACTERS_FILENAME, update.characters);
+      await writeTrackedSetting(bookPath, WORLD_STATE_FILENAME, ensureTrailingNewline(update.world_state));
+      await writeTrackedSetting(bookPath, CHARACTERS_FILENAME, ensureTrailingNewline(update.characters));
 
       return {
         book_id: bookId,
@@ -252,11 +248,6 @@ export async function createNibotApp(dependencies: AppDependencies) {
       };
     },
   };
-}
-
-async function resolveProviderForApp(homeDir: string, providerName?: string): Promise<ProviderConfig> {
-  const store = await loadProviderStore(homeDir);
-  return resolveProvider(store, providerName);
 }
 
 function getSettingContent(settings: LoadedSetting[], filename: string): string {

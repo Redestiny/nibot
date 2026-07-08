@@ -182,12 +182,14 @@ export async function buildProgram(options: BuildCliOptions = {}): Promise<Comma
     .command('sync')
     .argument('<bookid>', 'Book id')
     .option('--provider <name>', 'Provider override')
+    .option('--yes', 'Apply settings changes without asking for confirmation')
     .option('--json', 'Output structured JSON')
     .action(
       async (
         bookId: string,
         commandOptions: {
           provider?: string;
+          yes?: boolean;
           json?: boolean;
         },
       ) => {
@@ -215,11 +217,13 @@ export async function buildProgram(options: BuildCliOptions = {}): Promise<Comma
           return;
         }
 
-        const confirmed = await confirmAction(
-          io,
-          Boolean(commandOptions.json),
-          'Apply these settings changes? [y/N] ',
-        );
+        const confirmed =
+          commandOptions.yes ||
+          (await confirmAction(
+            io,
+            Boolean(commandOptions.json),
+            'Apply these settings changes? [y/N] ',
+          ));
 
         if (!confirmed) {
           if (commandOptions.json) {

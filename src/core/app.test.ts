@@ -124,6 +124,45 @@ describe('Nibot app integration', () => {
     );
   });
 
+  it('resolves the requested provider override and rejects unknown providers', async () => {
+    const cwd = await createTempDir();
+    const homeDir = await createTempDir();
+    const llm = new FakeLlmClient(['章节内容'], '{}');
+    const app = await createNibotApp({ cwd, homeDir, llmClient: llm });
+
+    await saveProviderStore(
+      {
+        providers: [
+          {
+            type: 'openai',
+            name: 'deepseek',
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-test-123456',
+            model: 'deepseek-chat',
+          },
+          {
+            type: 'anthropic',
+            name: 'claude',
+            base_url: 'https://proxy.example',
+            api_key: 'sk-test-abcdef',
+            model: 'claude-sonnet',
+          },
+        ],
+        default_provider: 'deepseek',
+      },
+      homeDir,
+    );
+
+    await app.createBook('story');
+
+    const result = await app.writeChapter({ bookId: 'story', providerName: 'claude' });
+    expect(result.provider).toBe('claude');
+
+    await expect(
+      app.writeChapter({ bookId: 'story', providerName: 'missing' }),
+    ).rejects.toMatchObject({ code: 'PROVIDER_NOT_FOUND' });
+  });
+
   it('prepares and applies sync updates after diff review', async () => {
     const cwd = await createTempDir();
     const homeDir = await createTempDir();

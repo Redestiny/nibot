@@ -24,6 +24,10 @@ export class OpenAiClient extends LlmClientBase {
       body.instructions = instructions;
     }
 
+    if (this.provider.max_tokens !== undefined) {
+      body.max_output_tokens = this.provider.max_tokens;
+    }
+
     return {
       body,
       streamOptions: { stream: true },
@@ -41,6 +45,29 @@ export class OpenAiClient extends LlmClientBase {
       return e.delta;
     }
     return null;
+  }
+
+  protected override checkResponse(response: unknown): void {
+    const resp = response as {
+      status?: string;
+      incomplete_details?: { reason?: string };
+    };
+    if (resp.status === 'incomplete' && resp.incomplete_details?.reason === 'max_output_tokens') {
+      throw this.truncationError();
+    }
+  }
+
+  protected override inspectStreamEvent(event: unknown): void {
+    const e = event as {
+      type: string;
+      response?: { incomplete_details?: { reason?: string } };
+    };
+    if (
+      e.type === 'response.incomplete' &&
+      e.response?.incomplete_details?.reason === 'max_output_tokens'
+    ) {
+      throw this.truncationError();
+    }
   }
 
   protected async callApi(body: Record<string, unknown>): Promise<unknown> {

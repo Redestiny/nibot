@@ -74,7 +74,7 @@ Provider 存储在全局（不是每本书独立），支持任意 OpenAI 兼容
   - `LlmClientBase` 抽象基类定义模板方法
   - `OpenAiClient` / `AnthropicClient` 继承基类实现差异逻辑
   - `LLMClient` 工厂类根据 `provider.type` 路由
-- **Provider 在构造时绑定** - `createNibotApp` 是 async，LLMClient 在首次需要时延迟创建
+- **Provider 按需解析** - 每次操作根据 `--provider` 覆盖或默认 provider 解析，LLMClient 按 provider 名缓存复用；测试可通过依赖注入替换客户端
 - **流式输出** - 章节内容实时流式输出到 stdout，同时收集用于文件写入
 - **Sync 基于 diff** - LLM 返回新的 world_state/characters 内容；展示给用户确认后才应用
 - **每本书独立的 .env** - 控制上下文窗口（包含的前序章节数量）
