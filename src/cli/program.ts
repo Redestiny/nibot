@@ -254,6 +254,33 @@ export async function buildProgram(options: BuildCliOptions = {}): Promise<Comma
       },
     );
 
+  program
+    .command('gui')
+    .description('Start the local web GUI server')
+    .option('--port <number>', 'Port to listen on', parsePortOption, 4317)
+    .option('--dir <path>', 'Books root directory (defaults to the current directory)')
+    .option('--open', 'Open the GUI in the default browser')
+    .action(async (commandOptions: { port: number; dir?: string; open?: boolean }) => {
+      const output = new OutputWriter(io, false);
+      const { startServer } = await import('../server/index.js');
+      const { url } = await startServer({
+        cwd: commandOptions.dir ?? options.cwd ?? process.cwd(),
+        homeDir: options.homeDir ?? homedir(),
+        llmClient: options.llmClient,
+        now: options.now,
+        port: commandOptions.port,
+      });
+
+      output.info(`Nibot GUI listening on ${url} (Ctrl+C to stop)`);
+
+      if (commandOptions.open) {
+        const { spawn } = await import('node:child_process');
+        const opener =
+          process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        spawn(opener, [url], { stdio: 'ignore', detached: true }).unref();
+      }
+    });
+
   const provider = program.command('provider').description('Manage providers');
 
   provider
@@ -346,4 +373,12 @@ function parseChapterOption(value: string): number {
 
     throw error;
   }
+}
+
+function parsePortOption(value: string): number {
+  const port = Number.parseInt(value, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new InvalidArgumentError('Port must be an integer between 1 and 65535.');
+  }
+  return port;
 }

@@ -64,20 +64,26 @@ export class AnthropicClient extends LlmClientBase {
     }
   }
 
-  protected async callApi(body: Record<string, unknown>): Promise<unknown> {
+  protected async callApi(
+    body: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     const anthropic = this.getClient();
-    return anthropic.messages.create(
-      body as unknown as Parameters<(typeof anthropic)['messages']['create']>[0],
-    );
+    const request = body as unknown as Parameters<(typeof anthropic)['messages']['create']>[0];
+    return signal
+      ? anthropic.messages.create(request, { signal })
+      : anthropic.messages.create(request);
   }
 
   protected async callStreamApi(
     body: Record<string, unknown>,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const anthropic = this.getClient();
-    return anthropic.messages.stream(
-      body as Parameters<(typeof anthropic)['messages']['stream']>[0],
-    );
+    const request = body as Parameters<(typeof anthropic)['messages']['stream']>[0];
+    return signal
+      ? anthropic.messages.stream(request, { signal })
+      : anthropic.messages.stream(request);
   }
 
   private getClient(): Anthropic {

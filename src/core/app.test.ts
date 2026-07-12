@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createNibotApp } from './app.js';
-import { saveProviderStore } from './providers.js';
+import { NibotError } from './errors.js';
+import { loadProviderStore, saveProviderStore } from './providers.js';
 import type { LlmClient, LlmGenerateRequest, LlmStreamRequest } from './types.js';
 
 class FakeLlmClient implements LlmClient {
@@ -20,12 +21,22 @@ class FakeLlmClient implements LlmClient {
   public async *streamText(request: LlmStreamRequest): AsyncIterable<string> {
     this.streamedRequests.push(request);
     for (const chunk of this.streamResponses) {
+      // Mirror the real clients: an aborted signal surfaces as NibotError ABORTED.
+      if (request.signal?.aborted) {
+        throw new NibotError('Generation aborted.', { code: 'ABORTED' });
+      }
       yield chunk;
+    }
+    if (request.signal?.aborted) {
+      throw new NibotError('Generation aborted.', { code: 'ABORTED' });
     }
   }
 
   public async generateText(request: LlmGenerateRequest): Promise<string> {
     this.generatedRequests.push(request);
+    if (request.signal?.aborted) {
+      throw new NibotError('Generation aborted.', { code: 'ABORTED' });
+    }
     return this.generateResponse;
   }
 }
@@ -161,6 +172,134 @@ describe('Nibot app integration', () => {
     await expect(
       app.writeChapter({ bookId: 'story', providerName: 'missing' }),
     ).rejects.toMatchObject({ code: 'PROVIDER_NOT_FOUND' });
+  });
+
+  it('aborts a streaming generation without writing the chapter file', async () => {
+    const cwd = await createTempDir();
+    const homeDir = await createTempDir();
+    const llm = new FakeLlmClient(['第一段', '第二段', '第三段'], '{}');
+    const app = await createNibotApp({ cwd, homeDir, llmClient: llm });
+
+    await saveProviderStore(
+      {
+        providers: [
+          {
+            type: 'openai',
+            name: 'deepseek',
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-test-123456',
+            model: 'deepseek-chat',
+          },
+        ],
+        default_provider: 'deepseek',
+      },
+      homeDir,
+    );
+
+    await app.createBook('story');
+
+    const controller = new AbortController();
+    const received: string[] = [];
+
+    await expect(
+      app.writeChapter({
+        bookId: 'story',
+        signal: controller.signal,
+        onText: (chunk) => {
+          received.push(chunk);
+          controller.abort();
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ABORTED' });
+
+    expect(received).toEqual(['第一段']);
+    expect(await app.listChapters('story')).toEqual([]);
+  });
+
+  it('lists, reads, and saves chapters with sequence enforcement', async () => {
+    const cwd = await createTempDir();
+    const homeDir = await createTempDir();
+    const app = await createNibotApp({ cwd, homeDir, llmClient: new FakeLlmClient([], '{}') });
+
+    await app.createBook('story');
+    expect(await app.listChapters('story')).toEqual([]);
+
+    const created = await app.saveChapter({ bookId: 'story', chapter: 1, content: '第一章草稿' });
+    expect(created).toMatchObject({ chapter: 1, filename: '0001.md', created: true });
+
+    const overwritten = await app.saveChapter({ bookId: 'story', chapter: 1, content: '第一章重写' });
+    expect(overwritten).toMatchObject({ chapter: 1, created: false });
+    expect((await app.getChapter('story', 1)).content).toBe('第一章重写');
+
+    await expect(
+      app.saveChapter({ bookId: 'story', chapter: 3, content: '跳号章节' }),
+    ).rejects.toMatchObject({ code: 'INVALID_CHAPTER_SEQUENCE' });
+
+    await app.saveChapter({ bookId: 'story', chapter: 2, content: '' });
+    expect(await app.listChapters('story')).toEqual([
+      { number: 1, filename: '0001.md' },
+      { number: 2, filename: '0002.md' },
+    ]);
+  });
+
+  it('reads and saves settings including outline.md', async () => {
+    const cwd = await createTempDir();
+    const homeDir = await createTempDir();
+    const app = await createNibotApp({ cwd, homeDir, llmClient: new FakeLlmClient([], '{}') });
+
+    await app.createBook('story');
+
+    const settings = await app.getSettings('story');
+    expect(settings.map((setting) => setting.filename)).toEqual([
+      'outline.md',
+      'characters.md',
+      'world_state.md',
+    ]);
+
+    await app.saveSetting({ bookId: 'story', filename: 'outline.md', content: '# 大纲\n\n新的主线。\n' });
+    expect(await readFile(join(cwd, 'story', 'settings', 'outline.md'), 'utf8')).toBe(
+      '# 大纲\n\n新的主线。\n',
+    );
+  });
+
+  it('removes providers and clears the default when it is removed', async () => {
+    const cwd = await createTempDir();
+    const homeDir = await createTempDir();
+    const app = await createNibotApp({ cwd, homeDir, llmClient: new FakeLlmClient([], '{}') });
+
+    await saveProviderStore(
+      {
+        providers: [
+          {
+            type: 'openai',
+            name: 'deepseek',
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-test-123456',
+            model: 'deepseek-chat',
+          },
+          {
+            type: 'anthropic',
+            name: 'claude',
+            base_url: 'https://proxy.example',
+            api_key: 'sk-test-abcdef',
+            model: 'claude-sonnet',
+          },
+        ],
+        default_provider: 'deepseek',
+      },
+      homeDir,
+    );
+
+    const result = await app.removeProvider('deepseek');
+    expect(result).toEqual({ removed: 'deepseek', default_provider: null });
+
+    const store = await loadProviderStore(homeDir);
+    expect(store.providers.map((provider) => provider.name)).toEqual(['claude']);
+    expect(store.default_provider).toBeUndefined();
+
+    await expect(app.removeProvider('missing')).rejects.toMatchObject({
+      code: 'PROVIDER_NOT_FOUND',
+    });
   });
 
   it('prepares and applies sync updates after diff review', async () => {

@@ -5,6 +5,7 @@ import {
   addProviderToStore,
   loadProviderStore,
   maskApiKey,
+  removeProviderFromStore,
   resolveProvider,
   saveProviderStore,
   setDefaultProviderInStore,
@@ -24,17 +25,21 @@ import type {
 import {
   createBookWorkspace,
   getBookStatus,
+  getChapterFiles,
   getContextPrevChapters,
   listBooks,
   loadChapter,
   loadRecentChapters,
   loadSettings,
+  parseChapterNumber,
   readBookMeta,
   resolveBookPath,
   resolveCompleteTarget,
+  resolveSaveTarget,
   resolveWriteTarget,
   writeChapterFile,
   writeTrackedSetting,
+  type SettingFilename,
 } from './workspace.js';
 import { NibotError } from './errors.js';
 
@@ -88,6 +93,52 @@ export async function createNibotApp(dependencies: AppDependencies) {
       return getBookStatus(dependencies.cwd, bookId);
     },
 
+    async listChapters(bookId: string) {
+      const bookPath = await resolveBookPath(dependencies.cwd, bookId);
+      const filenames = await getChapterFiles(bookPath);
+      return filenames.map((filename) => ({
+        number: parseChapterNumber(filename),
+        filename,
+      }));
+    },
+
+    async getChapter(bookId: string, chapter: number) {
+      const bookPath = await resolveBookPath(dependencies.cwd, bookId);
+      return loadChapter(bookPath, chapter);
+    },
+
+    async saveChapter(options: { bookId: string; chapter: number; content: string }) {
+      const bookPath = await resolveBookPath(dependencies.cwd, options.bookId);
+      const book = await readBookMeta(bookPath);
+      const { target, exists } = await resolveSaveTarget(bookPath, options.chapter);
+      await writeChapterFile(target.path, options.content);
+
+      return {
+        book_id: book.id,
+        chapter: target.number,
+        filename: target.filename,
+        path: target.path,
+        bytes: Buffer.byteLength(options.content),
+        created: !exists,
+      };
+    },
+
+    async getSettings(bookId: string) {
+      const bookPath = await resolveBookPath(dependencies.cwd, bookId);
+      return loadSettings(bookPath);
+    },
+
+    async saveSetting(options: { bookId: string; filename: SettingFilename; content: string }) {
+      const bookPath = await resolveBookPath(dependencies.cwd, options.bookId);
+      await writeTrackedSetting(bookPath, options.filename, options.content);
+
+      return {
+        book_id: options.bookId,
+        filename: options.filename,
+        bytes: Buffer.byteLength(options.content),
+      };
+    },
+
     async listProviders() {
       const store = await loadProviderStore(dependencies.homeDir);
       return {
@@ -127,6 +178,17 @@ export async function createNibotApp(dependencies: AppDependencies) {
       };
     },
 
+    async removeProvider(providerName: string) {
+      const currentStore = await loadProviderStore(dependencies.homeDir);
+      const nextStore = removeProviderFromStore(currentStore, providerName);
+      await saveProviderStore(nextStore, dependencies.homeDir);
+
+      return {
+        removed: providerName,
+        default_provider: nextStore.default_provider ?? null,
+      };
+    },
+
     async writeChapter(options: WriteChapterOptions) {
       const bookPath = await resolveBookPath(dependencies.cwd, options.bookId);
       const book = await readBookMeta(bookPath);
@@ -145,12 +207,12 @@ export async function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(client, messages, options.onText);
+      const content = await streamAndCollectText(client, messages, options.onText, options.signal);
       ensureNonEmptyGeneratedText(content, 'chapter');
       await writeChapterFile(target.path, content);
 
       return {
-        action: 'write',
+        action: 'write' as const,
         book_id: book.id,
         chapter: target.number,
         filename: target.filename,
@@ -175,12 +237,12 @@ export async function createNibotApp(dependencies: AppDependencies) {
         intent: options.intent,
       });
 
-      const content = await streamAndCollectText(client, messages, options.onText);
+      const content = await streamAndCollectText(client, messages, options.onText, options.signal);
       ensureNonEmptyGeneratedText(content, 'complete chapter');
       await writeChapterFile(target.path, content);
 
       return {
-        action: 'complete',
+        action: 'complete' as const,
         book_id: book.id,
         chapter: target.number,
         filename: target.filename,
@@ -215,6 +277,7 @@ export async function createNibotApp(dependencies: AppDependencies) {
           worldState,
           characters,
         }),
+        signal: options.signal,
       });
 
       const update = parseSyncUpdate(rawResponse);
@@ -264,10 +327,11 @@ async function streamAndCollectText(
   llmClient: LlmClient,
   messages: ChatMessage[],
   onText?: (chunk: string) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
   let content = '';
 
-  for await (const chunk of llmClient.streamText({ messages })) {
+  for await (const chunk of llmClient.streamText({ messages, signal })) {
     content += chunk;
     onText?.(chunk);
   }

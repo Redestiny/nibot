@@ -9,18 +9,25 @@
   "bin": {
     "nibot": "./dist/src/cli/index.js"
   },
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && npm run build -w web",
     "dev": "tsx src/cli/index.ts",
-    "test": "vitest run"
+    "dev:web": "npm run dev -w web",
+    "test": "vitest run",
+    "test:web": "npm run test -w web"
   },
   "engines": {
     "node": ">=24"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.86.1",
+    "@hono/node-server": "^1.14.0",
     "commander": "^14.0.3",
     "diff": "^8.0.4",
+    "hono": "^4.7.0",
     "openai": "^6.34.0"
   },
   "devDependencies": {

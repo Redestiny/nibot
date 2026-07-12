@@ -48,6 +48,21 @@ export interface WriteTarget {
   path: string;
 }
 
+export type SettingFilename =
+  | typeof OUTLINE_FILENAME
+  | typeof WORLD_STATE_FILENAME
+  | typeof CHARACTERS_FILENAME;
+
+export const SETTING_FILENAMES: readonly SettingFilename[] = [
+  OUTLINE_FILENAME,
+  WORLD_STATE_FILENAME,
+  CHARACTERS_FILENAME,
+];
+
+export function isSettingFilename(value: string): value is SettingFilename {
+  return (SETTING_FILENAMES as readonly string[]).includes(value);
+}
+
 export async function createBookWorkspace(options: CreateBookOptions): Promise<{
   book: BookMeta;
   path: string;
@@ -327,9 +342,26 @@ export async function writeChapterFile(path: string, content: string): Promise<v
   await writeFile(path, content, 'utf8');
 }
 
+// Save = overwrite an existing chapter, or create exactly latest+1 (sequence
+// enforcement is delegated to resolveWriteTarget).
+export async function resolveSaveTarget(
+  bookPath: string,
+  chapterNumber: number,
+): Promise<{ target: WriteTarget; exists: boolean }> {
+  const chapterFiles = await getChapterFiles(bookPath);
+  const filename = chapterFilename(chapterNumber);
+
+  if (chapterFiles.includes(filename)) {
+    return { target: buildWriteTarget(bookPath, chapterNumber), exists: true };
+  }
+
+  const target = await resolveWriteTarget(bookPath, chapterNumber);
+  return { target, exists: false };
+}
+
 export async function readTrackedSetting(
   bookPath: string,
-  filename: typeof WORLD_STATE_FILENAME | typeof CHARACTERS_FILENAME,
+  filename: SettingFilename,
 ): Promise<string> {
   const filePath = join(bookPath, SETTINGS_DIRNAME, filename);
   return readFile(filePath, 'utf8');
@@ -337,7 +369,7 @@ export async function readTrackedSetting(
 
 export async function writeTrackedSetting(
   bookPath: string,
-  filename: typeof WORLD_STATE_FILENAME | typeof CHARACTERS_FILENAME,
+  filename: SettingFilename,
   content: string,
 ): Promise<void> {
   const filePath = join(bookPath, SETTINGS_DIRNAME, filename);

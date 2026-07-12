@@ -77,6 +77,25 @@ export function addProviderToStore(
   };
 }
 
+export function removeProviderFromStore(
+  store: ProviderStore,
+  providerName: string,
+): ProviderStore {
+  if (!store.providers.some((provider) => provider.name === providerName)) {
+    throw new NibotError(`Provider "${providerName}" does not exist.`, {
+      code: 'PROVIDER_NOT_FOUND',
+    });
+  }
+
+  return {
+    providers: store.providers.filter((provider) => provider.name !== providerName),
+    // Removing the default leaves no default on purpose: the caller must pick
+    // a new one explicitly instead of silently falling back.
+    default_provider:
+      store.default_provider === providerName ? undefined : store.default_provider,
+  };
+}
+
 export function setDefaultProviderInStore(
   store: ProviderStore,
   providerName: string,

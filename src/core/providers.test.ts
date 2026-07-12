@@ -10,6 +10,7 @@ import {
   loadProviderStore,
   maskApiKey,
   parseProviderStore,
+  removeProviderFromStore,
   resolveProvider,
   saveProviderStore,
   setDefaultProviderInStore,
@@ -161,6 +162,40 @@ describe('providers', () => {
 
     const { mode } = await stat(join(xdgConfigHome, 'nibot', 'config.json'));
     expect(mode & 0o777).toBe(0o600);
+  });
+
+  it('removes providers and clears the default only when the default is removed', () => {
+    const store = {
+      providers: [
+        {
+          type: 'openai' as const,
+          name: 'deepseek',
+          base_url: 'https://api.deepseek.com/v1',
+          api_key: 'sk-test-123456',
+          model: 'deepseek-chat',
+        },
+        {
+          type: 'anthropic' as const,
+          name: 'claude',
+          base_url: 'https://proxy.example',
+          api_key: 'sk-test-abcdef',
+          model: 'claude-sonnet',
+        },
+      ],
+      default_provider: 'deepseek',
+    };
+
+    const withoutClaude = removeProviderFromStore(store, 'claude');
+    expect(withoutClaude.providers.map((provider) => provider.name)).toEqual(['deepseek']);
+    expect(withoutClaude.default_provider).toBe('deepseek');
+
+    const withoutDefault = removeProviderFromStore(store, 'deepseek');
+    expect(withoutDefault.providers.map((provider) => provider.name)).toEqual(['claude']);
+    expect(withoutDefault.default_provider).toBeUndefined();
+
+    expect(() => removeProviderFromStore(store, 'missing')).toThrow(
+      'Provider "missing" does not exist.',
+    );
   });
 
   it('accepts an optional positive integer max_tokens and rejects invalid values', () => {

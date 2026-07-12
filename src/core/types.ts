@@ -46,10 +46,12 @@ export interface SyncUpdate {
 
 export interface LlmStreamRequest {
   messages: ChatMessage[];
+  signal?: AbortSignal;
 }
 
 export interface LlmGenerateRequest {
   messages: ChatMessage[];
+  signal?: AbortSignal;
 }
 
 export interface LlmClient {
@@ -63,6 +65,7 @@ export interface WriteChapterOptions {
   intent?: string;
   providerName?: string;
   onText?: (chunk: string) => void;
+  signal?: AbortSignal;
 }
 
 export interface CompleteChapterOptions extends WriteChapterOptions {}
@@ -70,4 +73,5 @@ export interface CompleteChapterOptions extends WriteChapterOptions {}
 export interface PrepareSyncOptions {
   bookId: string;
   providerName?: string;
+  signal?: AbortSignal;
 }

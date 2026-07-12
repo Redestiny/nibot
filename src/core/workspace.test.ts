@@ -8,10 +8,12 @@ import {
   chapterFilename,
   createBookWorkspace,
   getContextPrevChapters,
+  isSettingFilename,
   loadSettings,
   parseChapterNumber,
   parseEnvFile,
   resolveCompleteTarget,
+  resolveSaveTarget,
   resolveWriteTarget,
 } from './workspace.js';
 
@@ -57,6 +59,34 @@ describe('workspace helpers', () => {
 
     await writeFile(join(bookPath, '.env'), 'NIBOT_CONTEXT_PREV_CHAPTERS=oops\n', 'utf8');
     expect(await getContextPrevChapters(bookPath)).toBe(3);
+  });
+
+  it('resolves save targets for existing chapters and the next sequential chapter', async () => {
+    const rootDir = await createTempDir();
+    await createBookWorkspace({ rootDir, bookId: 'saves' });
+    const bookPath = join(rootDir, 'saves');
+
+    await writeFile(join(bookPath, 'chapters', '0001.md'), 'one', 'utf8');
+
+    await expect(resolveSaveTarget(bookPath, 1)).resolves.toMatchObject({
+      exists: true,
+      target: { filename: '0001.md' },
+    });
+    await expect(resolveSaveTarget(bookPath, 2)).resolves.toMatchObject({
+      exists: false,
+      target: { filename: '0002.md' },
+    });
+    await expect(resolveSaveTarget(bookPath, 4)).rejects.toThrow(
+      'The next available chapter is 0002.md',
+    );
+  });
+
+  it('recognizes tracked setting filenames', () => {
+    expect(isSettingFilename('outline.md')).toBe(true);
+    expect(isSettingFilename('world_state.md')).toBe(true);
+    expect(isSettingFilename('characters.md')).toBe(true);
+    expect(isSettingFilename('timeline.md')).toBe(false);
+    expect(isSettingFilename('../escape.md')).toBe(false);
   });
 
   it('enforces contiguous write chapters and existing complete chapters', async () => {

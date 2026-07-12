@@ -149,6 +149,86 @@ describe('OpenAiClient', () => {
     });
   });
 
+  it('passes the abort signal to the SDK and maps aborted streams to ABORTED', async () => {
+    const { provider } = await createConfiguredProvider();
+    const controller = new AbortController();
+
+    async function* generateEvents() {
+      yield { type: 'response.output_text.delta', delta: '片段一' };
+      controller.abort();
+      throw new Error('Request was aborted.');
+    }
+
+    const mockClient = {
+      responses: {
+        create: vi.fn().mockReturnValue(generateEvents()),
+      },
+    };
+
+    const client = new OpenAiClient(provider, mockClient as any);
+
+    await expect(
+      collectStream(client.streamText({ messages, signal: controller.signal })),
+    ).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'ABORTED',
+    });
+
+    expect(mockClient.responses.create).toHaveBeenCalledWith(expect.anything(), {
+      signal: controller.signal,
+    });
+  });
+
+  it('throws ABORTED when the SDK ends the stream gracefully after an abort', async () => {
+    // Real-world failure mode: aborting the fetch mid-stream can make the SDK
+    // iterator end normally instead of throwing, which previously caused a
+    // partial chapter to be written as if it were complete.
+    const { provider } = await createConfiguredProvider();
+    const controller = new AbortController();
+
+    async function* generateEvents() {
+      yield { type: 'response.output_text.delta', delta: '片段一' };
+      controller.abort();
+      // Graceful end: no error thrown after the abort.
+    }
+
+    const mockClient = {
+      responses: {
+        create: vi.fn().mockReturnValue(generateEvents()),
+      },
+    };
+
+    const client = new OpenAiClient(provider, mockClient as any);
+
+    await expect(
+      collectStream(client.streamText({ messages, signal: controller.signal })),
+    ).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'ABORTED',
+    });
+  });
+
+  it('maps aborted generateText calls to ABORTED', async () => {
+    const { provider } = await createConfiguredProvider();
+    const controller = new AbortController();
+    controller.abort();
+
+    const mockClient = {
+      responses: {
+        create: vi.fn().mockRejectedValue(new Error('Request was aborted.')),
+      },
+    };
+
+    const client = new OpenAiClient(provider, mockClient as any);
+
+    await expect(
+      client.generateText({ messages, signal: controller.signal }),
+    ).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'ABORTED',
+    });
+  });
+
   it('rejects responses truncated by max_output_tokens', async () => {
     const { provider } = await createConfiguredProvider();
 
@@ -239,6 +319,35 @@ describe('AnthropicClient', () => {
     await expect(collectStream(client.streamText({ messages }))).rejects.toMatchObject({
       name: 'NibotError',
       code: 'LLM_RESPONSE_TRUNCATED',
+    });
+  });
+
+  it('passes the abort signal to the streaming SDK call and maps aborts to ABORTED', async () => {
+    const controller = new AbortController();
+
+    async function* generateEvents() {
+      yield { type: 'content_block_delta', delta: { type: 'text_delta', text: '开头片段' } };
+      controller.abort();
+      throw new Error('Request was aborted.');
+    }
+
+    const mockClient = {
+      messages: {
+        stream: vi.fn().mockReturnValue(generateEvents()),
+      },
+    };
+
+    const client = new AnthropicClient(provider, mockClient as any);
+
+    await expect(
+      collectStream(client.streamText({ messages, signal: controller.signal })),
+    ).rejects.toMatchObject({
+      name: 'NibotError',
+      code: 'ABORTED',
+    });
+
+    expect(mockClient.messages.stream).toHaveBeenCalledWith(expect.anything(), {
+      signal: controller.signal,
     });
   });
 });

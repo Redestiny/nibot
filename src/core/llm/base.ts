@@ -19,23 +19,39 @@ export abstract class LlmClientBase implements LlmClient {
     const { body, streamOptions } = this.buildRequest(request.messages);
 
     try {
-      const response = await this.callStreamApi({
-        ...body,
-        ...streamOptions,
-      });
+      const response = await this.callStreamApi(
+        {
+          ...body,
+          ...streamOptions,
+        },
+        request.signal,
+      );
 
       const stream = response as unknown as AsyncIterable<unknown>;
 
       for await (const event of stream) {
+        // Some SDKs surface an aborted connection as a graceful end of stream
+        // rather than an error; without this check a partial chapter would be
+        // treated as complete and written to disk.
+        if (request.signal?.aborted) {
+          throw this.abortedError(undefined);
+        }
         this.inspectStreamEvent(event);
         const delta = this.extractStreamDelta(event);
         if (delta) {
           yield delta;
         }
       }
+
+      if (request.signal?.aborted) {
+        throw this.abortedError(undefined);
+      }
     } catch (error) {
       if (error instanceof NibotError) {
         throw error;
+      }
+      if (request.signal?.aborted) {
+        throw this.abortedError(error);
       }
       throw new NibotError(`Streaming completion failed via provider "${this.provider.name}".`, {
         code: 'LLM_STREAM_FAILED',
@@ -48,7 +64,7 @@ export abstract class LlmClientBase implements LlmClient {
     const { body } = this.buildRequest(request.messages);
 
     try {
-      const response = await this.callApi(body);
+      const response = await this.callApi(body, request.signal);
       this.checkResponse(response);
       const text = this.extractText(response);
 
@@ -63,6 +79,9 @@ export abstract class LlmClientBase implements LlmClient {
       if (error instanceof NibotError) {
         throw error;
       }
+      if (request.signal?.aborted) {
+        throw this.abortedError(error);
+      }
       throw new NibotError(`Completion failed via provider "${this.provider.name}".`, {
         code: 'LLM_COMPLETION_FAILED',
         cause: error,
@@ -70,10 +89,14 @@ export abstract class LlmClientBase implements LlmClient {
     }
   }
 
-  protected abstract callApi(body: Record<string, unknown>): Promise<unknown>;
+  protected abstract callApi(
+    body: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
 
   protected abstract callStreamApi(
     body: Record<string, unknown>,
+    signal?: AbortSignal,
   ): Promise<unknown>;
 
   // Subclasses may throw here to reject a non-streaming response (e.g. truncation).
@@ -88,5 +111,12 @@ export abstract class LlmClientBase implements LlmClient {
         'Increase "max_tokens" for this provider in the nibot config.',
       { code: 'LLM_RESPONSE_TRUNCATED' },
     );
+  }
+
+  private abortedError(cause?: unknown): NibotError {
+    return new NibotError('Generation aborted.', {
+      code: 'ABORTED',
+      ...(cause === undefined ? {} : { cause }),
+    });
   }
 }
