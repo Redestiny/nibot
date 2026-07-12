@@ -1,6 +1,6 @@
 {
   "name": "@redestiny/nibot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local CLI MVP for AI-assisted long-form writing workflows.",
   "type": "module",
   "files": [
