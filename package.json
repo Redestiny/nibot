@@ -7,7 +7,7 @@
     "dist"
   ],
   "bin": {
-    "nibot": "./dist/src/cli/index.js"
+    "nibot": "dist/src/cli/index.js"
   },
   "workspaces": [
     "web"
