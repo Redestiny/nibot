@@ -26,27 +26,36 @@ jobs:
       - run: npm run build
       - run: npm run build -w electron
       # No signing certificates: mac builds are ad-hoc signed, win builds
-      # unsigned. Publishes artifacts to a draft GitHub release for the tag.
-      - name: Build and publish (mac)
+      # unsigned. The release job attaches all artifacts in one place, so
+      # the two platform jobs never race to create the GitHub release.
+      - name: Package (mac)
         if: runner.os == 'macOS'
-        run: npm run dist:mac -w electron -- --publish always
+        run: npm run dist:mac -w electron -- --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      - name: Build and publish (win)
+      - name: Package (win)
         if: runner.os == 'Windows'
-        run: npm run dist:win -w electron -- --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist:win -w electron -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            electron/release/*.dmg
+            electron/release/*.exe
+            electron/release/*.blockmap
+            electron/release/latest*.yml
 
-  # electron-builder uploads into a draft; flip it public once both
-  # platforms have finished uploading their artifacts.
-  publish:
+  release:
     if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Publish draft release
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -64,5 +73,6 @@ jobs:
 
           书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换），provider 配置与 CLI 共享 `~/.config/nibot`。
           EOF
-          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" --notes-file notes.md --draft=false --latest
+          ls -la assets/
+          gh release create "$GITHUB_REF_NAME" assets/* --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --latest
