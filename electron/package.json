@@ -1,7 +1,7 @@
 {
   "name": "@redestiny/nibot-desktop",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Nibot 桌面写作台",
   "productName": "Nibot",
   "author": "Codada",

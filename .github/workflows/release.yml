@@ -38,3 +38,31 @@ jobs:
         run: npm run dist:win -w electron -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # electron-builder uploads into a draft; flip it public once both
+  # platforms have finished uploading their artifacts.
+  publish:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > notes.md <<'EOF'
+          Nibot 桌面写作台（内置与 `nibot gui` 相同的界面，无需安装 Node.js）。
+
+          | 平台 | 下载 |
+          |------|------|
+          | macOS（Apple Silicon） | `Nibot-*-mac-arm64.dmg` |
+          | macOS（Intel） | `Nibot-*-mac-x64.dmg` |
+          | Windows（x64） | `Nibot-Setup-*.exe` |
+
+          **macOS 首次打开**：安装包未经 Apple 公证，若提示"已损坏/无法打开"，请执行 `xattr -cr /Applications/Nibot.app` 后重新打开。
+          **Windows 首次打开**：安装包未签名，SmartScreen 提示时点击"更多信息 → 仍要运行"。
+
+          书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换），provider 配置与 CLI 共享 `~/.config/nibot`。
+          EOF
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --draft=false --latest
