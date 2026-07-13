@@ -5,8 +5,12 @@ import { fileURLToPath } from 'node:url';
 import type { Context } from 'hono';
 
 // Compiled location is dist/src/server/static.js, so ../../web is dist/web —
-// the Vite build output that ships inside the published package.
-const WEB_DIST_DIR = fileURLToPath(new URL('../../web/', import.meta.url));
+// the Vite build output that ships inside the published package. Electron
+// bundles this module elsewhere and passes an explicit webRoot instead, so
+// this stays lazy: bundlers may relocate import.meta.url.
+function defaultWebDistDir(): string {
+  return fileURLToPath(new URL('../../web/', import.meta.url));
+}
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -22,29 +26,35 @@ const MIME_TYPES: Record<string, string> = {
 
 // Serves the built web app with an SPA fallback to index.html. Registered as
 // a catch-all GET route after the /api routes.
-export async function serveWebApp(c: Context): Promise<Response> {
-  const requestPath = decodeURIComponent(new URL(c.req.url).pathname);
-  const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/u, '');
-  const filePath = resolve(WEB_DIST_DIR, relativePath);
+export function createWebAppHandler(
+  webRoot?: string,
+): (c: Context) => Promise<Response> {
+  const rootDir = resolve(webRoot ?? defaultWebDistDir());
 
-  if (filePath !== resolve(WEB_DIST_DIR) && !filePath.startsWith(resolve(WEB_DIST_DIR) + sep)) {
-    return c.text('Forbidden', 403);
-  }
+  return async function serveWebApp(c: Context): Promise<Response> {
+    const requestPath = decodeURIComponent(new URL(c.req.url).pathname);
+    const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/u, '');
+    const filePath = resolve(rootDir, relativePath);
 
-  const file = await tryReadFile(filePath);
-  if (file) {
-    return respondWithFile(filePath, file);
-  }
+    if (filePath !== rootDir && !filePath.startsWith(rootDir + sep)) {
+      return c.text('Forbidden', 403);
+    }
 
-  const indexFile = await tryReadFile(resolve(WEB_DIST_DIR, 'index.html'));
-  if (indexFile) {
-    return respondWithFile('index.html', indexFile);
-  }
+    const file = await tryReadFile(filePath);
+    if (file) {
+      return respondWithFile(filePath, file);
+    }
 
-  return c.text(
-    'Nibot GUI assets not found. Run "npm run build" to produce dist/web first.',
-    404,
-  );
+    const indexFile = await tryReadFile(resolve(rootDir, 'index.html'));
+    if (indexFile) {
+      return respondWithFile('index.html', indexFile);
+    }
+
+    return c.text(
+      'Nibot GUI assets not found. Run "npm run build" to produce dist/web first.',
+      404,
+    );
+  };
 }
 
 function respondWithFile(filePath: string, content: Buffer): Response {

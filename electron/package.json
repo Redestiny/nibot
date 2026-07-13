@@ -1,0 +1,23 @@
+{
+  "name": "@redestiny/nibot-desktop",
+  "private": true,
+  "version": "0.3.0",
+  "description": "Nibot 桌面写作台",
+  "productName": "Nibot",
+  "author": "Codada",
+  "license": "MIT",
+  "type": "module",
+  "main": "build/main.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "43.1.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.1"
+  }
+}

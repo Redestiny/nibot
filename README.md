@@ -92,4 +92,29 @@ npm run dev -- gui --dir <书籍目录>   # 启动 API 服务（4317）
 npm run dev:web                       # 启动 Vite 开发服务器（5173，代理 /api）
 ```
 
-前端位于 `web/`（React + Vite），通过 `src/shared/bridge.ts` 中的 `NibotBridge` 类型接口访问后端（当前为 HTTP + NDJSON 流实现）。后续打包 Electron 时由 preload 注入 `window.nibotBridge`（IPC 实现），渲染层无需改动。
+前端位于 `web/`（React + Vite），通过 `src/shared/bridge.ts` 中的 `NibotBridge` 类型接口访问后端（当前为 HTTP + NDJSON 流实现）。
+
+---
+
+## 桌面应用（macOS / Windows）
+
+无需安装 Node.js，直接从 [GitHub Releases](https://github.com/Redestiny/nibot/releases) 下载安装包：
+
+| 平台 | 安装包 |
+|------|--------|
+| macOS（Apple Silicon） | `Nibot-<版本>-mac-arm64.dmg` |
+| macOS（Intel） | `Nibot-<版本>-mac-x64.dmg` |
+| Windows（x64） | `Nibot-Setup-<版本>.exe` |
+
+桌面版内置与 `nibot gui` 相同的写作台，书籍默认保存在 `文档/Nibot`（可通过菜单"文件 → 选择书籍目录"更换），provider 配置与 CLI 共享 `~/.config/nibot`。
+
+> **macOS 首次打开**：安装包未经 Apple 公证，首次启动若提示"已损坏/无法打开"，请在终端执行 `xattr -cr /Applications/Nibot.app` 后重新打开，或在"系统设置 → 隐私与安全性"中选择"仍要打开"。
+>
+> **Windows 首次打开**：安装包未签名，SmartScreen 提示时点击"更多信息 → 仍要运行"。
+
+本地构建桌面应用：
+
+```bash
+npm run dist:mac   # 产物在 electron/release/
+npm run dist:win
+```

@@ -1,6 +1,6 @@
 {
   "name": "@redestiny/nibot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local CLI MVP for AI-assisted long-form writing workflows.",
   "type": "module",
   "files": [
@@ -10,12 +10,16 @@
     "nibot": "dist/src/cli/index.js"
   },
   "workspaces": [
-    "web"
+    "web",
+    "electron"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && npm run build -w web",
+    "build:desktop": "npm run build && npm run build -w electron",
     "dev": "tsx src/cli/index.ts",
     "dev:web": "npm run dev -w web",
+    "dist:mac": "npm run build:desktop && npm run dist:mac -w electron",
+    "dist:win": "npm run build:desktop && npm run dist:win -w electron",
     "test": "vitest run",
     "test:web": "npm run test -w web"
   },

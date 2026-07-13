@@ -1,0 +1,40 @@
+name: "Release Desktop"
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - run: npm run build -w electron
+      # No signing certificates: mac builds are ad-hoc signed, win builds
+      # unsigned. Publishes artifacts to a draft GitHub release for the tag.
+      - name: Build and publish (mac)
+        if: runner.os == 'macOS'
+        run: npm run dist:mac -w electron -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Build and publish (win)
+        if: runner.os == 'Windows'
+        run: npm run dist:win -w electron -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
