@@ -6,7 +6,8 @@ import { createWebAppHandler } from './static.js';
 
 export interface StartServerOptions {
   cwd: string;
-  homeDir: string;
+  /** Config root override (tests/embedders). Omit to use XDG_CONFIG_HOME or ~/.config. */
+  homeDir?: string;
   /** Pass 0 to let the OS pick a free port; the resolved port is returned. */
   port: number;
   /** Directory holding the built web assets. Defaults to dist/web next to the compiled code. */

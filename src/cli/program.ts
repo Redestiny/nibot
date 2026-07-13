@@ -1,5 +1,4 @@
 import { stdin, stdout, stderr } from 'node:process';
-import { homedir } from 'node:os';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
 
 import { createNibotApp } from '../core/app.js';
@@ -34,7 +33,7 @@ export async function buildProgram(options: BuildCliOptions = {}): Promise<Comma
   };
   const app = await createNibotApp({
     cwd: options.cwd ?? process.cwd(),
-    homeDir: options.homeDir ?? homedir(),
+    homeDir: options.homeDir,
     llmClient: options.llmClient,
     now: options.now,
   });
@@ -265,7 +264,7 @@ export async function buildProgram(options: BuildCliOptions = {}): Promise<Comma
       const { startServer } = await import('../server/index.js');
       const { url } = await startServer({
         cwd: commandOptions.dir ?? options.cwd ?? process.cwd(),
-        homeDir: options.homeDir ?? homedir(),
+        homeDir: options.homeDir,
         llmClient: options.llmClient,
         now: options.now,
         port: commandOptions.port,

@@ -29,18 +29,16 @@ afterEach(async () => {
 });
 
 describe('providers', () => {
-  it('resolves provider config path under ~/.config by default', () => {
-    const original = process.env.XDG_CONFIG_HOME;
-    delete process.env.XDG_CONFIG_HOME;
-    try {
-      expect(getProviderConfigPath('/tmp/home')).toBe('/tmp/home/.config/nibot/config.json');
-    } finally {
-      process.env.XDG_CONFIG_HOME = original;
-    }
+  it('resolves provider config path under XDG_CONFIG_HOME when no homeDir is injected', () => {
+    expect(getProviderConfigPath(undefined, '/tmp/xdg')).toBe('/tmp/xdg/nibot/config.json');
   });
 
-  it('resolves provider config path under XDG_CONFIG_HOME when provided', () => {
-    expect(getProviderConfigPath('/tmp/home', '/tmp/xdg')).toBe('/tmp/xdg/nibot/config.json');
+  it('lets an injected homeDir win over XDG_CONFIG_HOME', () => {
+    // CI runners set XDG_CONFIG_HOME globally; an explicitly injected homeDir
+    // must stay isolated from it or parallel tests share one real config file.
+    expect(getProviderConfigPath('/tmp/home', '/tmp/xdg')).toBe(
+      '/tmp/home/.config/nibot/config.json',
+    );
   });
 
   it('adds providers and defaults the first one', () => {
@@ -131,8 +129,7 @@ describe('providers', () => {
   });
 
   it('saves and loads provider config from the XDG path', async () => {
-    const homeDir = await createTempDir();
-    const xdgConfigHome = join(homeDir, 'custom-config');
+    const xdgConfigHome = join(await createTempDir(), 'custom-config');
     const store = {
       providers: [
         {
@@ -146,19 +143,18 @@ describe('providers', () => {
       default_provider: 'deepseek',
     };
 
-    await saveProviderStore(store, homeDir, xdgConfigHome);
+    await saveProviderStore(store, undefined, xdgConfigHome);
 
     expect(await readFile(join(xdgConfigHome, 'nibot', 'config.json'), 'utf8')).toContain(
       '"default_provider": "deepseek"',
     );
-    await expect(loadProviderStore(homeDir, xdgConfigHome)).resolves.toEqual(store);
+    await expect(loadProviderStore(undefined, xdgConfigHome)).resolves.toEqual(store);
   });
 
   it('writes the config file readable by the owner only', async () => {
-    const homeDir = await createTempDir();
-    const xdgConfigHome = join(homeDir, 'custom-config');
+    const xdgConfigHome = join(await createTempDir(), 'custom-config');
 
-    await saveProviderStore({ providers: [] }, homeDir, xdgConfigHome);
+    await saveProviderStore({ providers: [] }, undefined, xdgConfigHome);
 
     const { mode } = await stat(join(xdgConfigHome, 'nibot', 'config.json'));
     expect(mode & 0o777).toBe(0o600);

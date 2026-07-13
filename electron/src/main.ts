@@ -1,5 +1,4 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -135,10 +134,10 @@ if (!gotLock) {
     .then(async () => {
       const webRoot = fileURLToPath(new URL('./web/', import.meta.url));
       // Port 0: the OS picks a free loopback port, so a running `nibot gui`
-      // (default 4317) never conflicts with the desktop app.
+      // (default 4317) never conflicts with the desktop app. homeDir stays
+      // unset so provider config resolves exactly like the CLI (XDG/~/.config).
       const { url } = await startServer({
         cwd: resolveBooksDir(),
-        homeDir: homedir(),
         port: 0,
         webRoot,
       });

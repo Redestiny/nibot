@@ -45,7 +45,8 @@ import { NibotError } from './errors.js';
 
 export interface AppDependencies {
   cwd: string;
-  homeDir: string;
+  /** Config root override (tests/embedders). Omit to use XDG_CONFIG_HOME or ~/.config. */
+  homeDir?: string;
   llmClient?: LlmClient;
   now?: () => Date;
 }

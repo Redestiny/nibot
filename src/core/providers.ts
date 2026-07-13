@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -9,25 +9,34 @@ const CONFIG_DIRNAME = 'nibot';
 const CONFIG_FILENAME = 'config.json';
 
 function resolveConfigBaseDir(
-  homeDir = homedir(),
+  homeDir?: string,
   xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): string {
+  // An explicitly injected homeDir fully determines the location — tests and
+  // embedders rely on it for isolation from the ambient environment (CI
+  // runners set XDG_CONFIG_HOME, which used to leak into every injected
+  // store and made parallel test files share one real config file). XDG
+  // only participates in the default, uninjected resolution.
+  if (typeof homeDir === 'string' && homeDir.length > 0) {
+    return join(homeDir, '.config');
+  }
+
   if (typeof xdgConfigHome === 'string' && xdgConfigHome.length > 0) {
     return xdgConfigHome;
   }
 
-  return join(homeDir, '.config');
+  return join(homedir(), '.config');
 }
 
 export function getProviderConfigPath(
-  homeDir = homedir(),
+  homeDir?: string,
   xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): string {
   return join(resolveConfigBaseDir(homeDir, xdgConfigHome), CONFIG_DIRNAME, CONFIG_FILENAME);
 }
 
 export async function loadProviderStore(
-  homeDir = homedir(),
+  homeDir?: string,
   xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): Promise<ProviderStore> {
   const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
@@ -49,14 +58,18 @@ export async function loadProviderStore(
 
 export async function saveProviderStore(
   store: ProviderStore,
-  homeDir = homedir(),
+  homeDir?: string,
   xdgConfigHome = process.env.XDG_CONFIG_HOME,
 ): Promise<void> {
   const configPath = getProviderConfigPath(homeDir, xdgConfigHome);
   await mkdir(dirname(configPath), { recursive: true });
-  // The store contains plaintext API keys; keep it readable by the owner only.
-  await writeFile(configPath, `${JSON.stringify(store, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
-  await chmod(configPath, 0o600);
+  // Write-then-rename so a concurrent reader (GUI server + CLI on the same
+  // config) never sees a truncated file. The store contains plaintext API
+  // keys; keep it readable by the owner only.
+  const tempPath = `${configPath}.${process.pid}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(store, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  await chmod(tempPath, 0o600);
+  await rename(tempPath, configPath);
 }
 
 export function addProviderToStore(
