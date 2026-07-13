@@ -19,18 +19,30 @@ Nibot是一个小说写作辅助工具
 
 ## 快速开始
 
-### 安装
+### 桌面版（macOS / Windows）
+
+无需安装 Node.js，从 [GitHub Releases](https://github.com/Redestiny/nibot/releases/latest) 下载安装包，打开即用：
+
+| 平台 | 安装包 |
+|------|--------|
+| macOS（Apple Silicon） | `Nibot-<版本>-mac-arm64.dmg` |
+| macOS（Intel） | `Nibot-<版本>-mac-x64.dmg` |
+| Windows（x64） | `Nibot-Setup-<版本>.exe` |
+
+首次启动后，在界面右侧添加 provider（API 提供商）即可开始写作。书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换）。
+
+> **macOS 首次打开**：安装包未经 Apple 公证，若提示"已损坏/无法打开"，请在终端执行 `xattr -cr /Applications/Nibot.app` 后重新打开，或在"系统设置 → 隐私与安全性"中选择"仍要打开"。
+>
+> **Windows 首次打开**：安装包未签名，SmartScreen 提示时点击"更多信息 → 仍要运行"。
+
+### 命令行版（CLI）
 
 ```bash
-npm i -g @redestiny/nibot
+npm i -g @redestiny/nibot   # 需要 Node.js >= 24
+nibot provider add          # 交互式添加 API 提供商
 ```
 
-### 首次配置
-
-```bash
-nibot provider add    #开始交互式添加API提供商
-```
-配置保存在 `~/.config/nibot`，所有书籍项目共享此配置。
+配置保存在 `~/.config/nibot`，所有书籍项目共享此配置，桌面版与 CLI 共用同一份。
 
 可在 `config.json` 中为 provider 添加可选的 `max_tokens` 字段，控制单次生成的最大输出 token 数（anthropic 类型默认 8192）。输出因达到上限被截断时会报错提示，不会静默写入半截内容。
 
@@ -90,31 +102,8 @@ nibot gui --open   # 启动并自动打开浏览器
 npm install
 npm run dev -- gui --dir <书籍目录>   # 启动 API 服务（4317）
 npm run dev:web                       # 启动 Vite 开发服务器（5173，代理 /api）
-```
-
-前端位于 `web/`（React + Vite），通过 `src/shared/bridge.ts` 中的 `NibotBridge` 类型接口访问后端（当前为 HTTP + NDJSON 流实现）。
-
----
-
-## 桌面应用（macOS / Windows）
-
-无需安装 Node.js，直接从 [GitHub Releases](https://github.com/Redestiny/nibot/releases) 下载安装包：
-
-| 平台 | 安装包 |
-|------|--------|
-| macOS（Apple Silicon） | `Nibot-<版本>-mac-arm64.dmg` |
-| macOS（Intel） | `Nibot-<版本>-mac-x64.dmg` |
-| Windows（x64） | `Nibot-Setup-<版本>.exe` |
-
-桌面版内置与 `nibot gui` 相同的写作台，书籍默认保存在 `文档/Nibot`（可通过菜单"文件 → 选择书籍目录"更换），provider 配置与 CLI 共享 `~/.config/nibot`。
-
-> **macOS 首次打开**：安装包未经 Apple 公证，首次启动若提示"已损坏/无法打开"，请在终端执行 `xattr -cr /Applications/Nibot.app` 后重新打开，或在"系统设置 → 隐私与安全性"中选择"仍要打开"。
->
-> **Windows 首次打开**：安装包未签名，SmartScreen 提示时点击"更多信息 → 仍要运行"。
-
-本地构建桌面应用：
-
-```bash
-npm run dist:mac   # 产物在 electron/release/
+npm run dist:mac                      # 本地构建桌面版，产物在 electron/release/
 npm run dist:win
 ```
+
+前端位于 `web/`（React + Vite），通过 `src/shared/bridge.ts` 中的 `NibotBridge` 类型接口访问后端（当前为 HTTP + NDJSON 流实现）。桌面版（`electron/`）在主进程内嵌同一套服务；推送 `v*` tag 会自动构建 macOS/Windows 安装包并发布 GitHub Release。
