@@ -10,6 +10,29 @@ permissions:
   contents: write
 
 jobs:
+  # npm Trusted Publishing (OIDC)：无需 NPM_TOKEN，凭证来自 GitHub 的
+  # id-token。前提是在 npmjs.com 的包设置里把本仓库 + release.yml 配置为
+  # Trusted Publisher。
+  publish-npm:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      # OIDC 发布要求 npm >= 11.5.1，Node 24 自带版本可能偏旧
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:web
+      - run: npm run build
+      - run: npm publish
+
   build:
     strategy:
       fail-fast: false
