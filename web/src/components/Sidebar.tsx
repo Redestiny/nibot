@@ -3,9 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useChapters } from '../api/queries';
 import { getBridge } from '../bridge';
 import { useSessionStore } from '../stores/session';
+import { IconPlus } from './icons';
 import { chapterLabel, SETTING_FILENAMES, SETTING_LABELS } from './labels';
 
-export function Sidebar() {
+export function Sidebar({ inert }: { inert?: boolean }) {
   const queryClient = useQueryClient();
   const bookId = useSessionStore((state) => state.bookId);
   const openTarget = useSessionStore((state) => state.openTarget);
@@ -46,16 +47,28 @@ export function Sidebar() {
 
   if (!bookId) {
     return (
-      <aside className="sidebar">
+      <aside className="sidebar" inert={inert}>
         <p className="sidebar-empty">先在顶栏选择或新建一本书。</p>
       </aside>
     );
   }
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" inert={inert}>
       <div className="sidebar-section">
-        <div className="sidebar-heading">章节</div>
+        <div className="sidebar-heading-row reveal-parent">
+          <div className="sidebar-heading">章节</div>
+          <button
+            type="button"
+            className="btn-ghost reveal-item"
+            disabled={switchDisabled}
+            title="新建章节"
+            aria-label="新建章节"
+            onClick={() => void createChapter()}
+          >
+            <IconPlus size={13} />
+          </button>
+        </div>
         <ul className="sidebar-list">
           {(chapters.data ?? []).map((chapter) => {
             const isActive =
@@ -89,11 +102,11 @@ export function Sidebar() {
         </ul>
         <button
           type="button"
-          className="btn sidebar-create"
+          className="sidebar-create"
           disabled={switchDisabled}
           onClick={() => void createChapter()}
         >
-          + 新建章节
+          <IconPlus size={13} /> 新建章节
         </button>
       </div>
       <div className="sidebar-section">

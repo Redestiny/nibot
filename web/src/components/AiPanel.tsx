@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useGeneration } from '../api/generation';
 import { useProviders } from '../api/queries';
 import { useSessionStore } from '../stores/session';
+import { IconStop } from './icons';
 import { chapterLabel } from './labels';
 
 export function AiPanel() {
@@ -81,7 +82,7 @@ export function AiPanel() {
             {generation.chapter !== null ? ` ${chapterLabel(generation.chapter)}` : ''}…
           </div>
           <button type="button" className="btn btn-danger" onClick={stop}>
-            ■ 停止生成
+            <IconStop size={12} /> 停止生成
           </button>
         </div>
       ) : (

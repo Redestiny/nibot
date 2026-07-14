@@ -8,15 +8,30 @@ import { Sidebar } from './components/Sidebar';
 import { SyncModal } from './components/SyncModal';
 import { TopBar } from './components/TopBar';
 import { useSessionStore } from './stores/session';
+import { useUiStore } from './stores/ui';
 
 export function App() {
   const modal = useSessionStore((state) => state.modal);
+  const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
+  const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (mod && event.key === '\\') {
+        event.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [toggleSidebar]);
 
   return (
     <div className="app">
       <TopBar />
-      <div className="app-main">
-        <Sidebar />
+      <div className={`app-main${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+        <Sidebar inert={sidebarCollapsed} />
         <EditorPane />
         <AiPanel />
       </div>

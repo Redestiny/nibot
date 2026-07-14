@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { IconX } from './icons';
+
 export function Modal({
   title,
   onClose,
@@ -24,7 +26,7 @@ export function Modal({
         <header className="modal-header">
           <h2>{title}</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="关闭">
-            ×
+            <IconX />
           </button>
         </header>
         <div className="modal-body">{children}</div>

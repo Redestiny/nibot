@@ -92,7 +92,7 @@ export function ProvidersModal() {
             </thead>
             <tbody>
               {data.providers.map((provider) => (
-                <tr key={provider.name}>
+                <tr key={provider.name} className="reveal-parent">
                   <td>
                     {provider.name}
                     {provider.is_default ? <span className="badge">默认</span> : null}
@@ -100,7 +100,7 @@ export function ProvidersModal() {
                   <td>{provider.model}</td>
                   <td className="providers-url">{provider.base_url}</td>
                   <td className="providers-key">{provider.api_key}</td>
-                  <td className="providers-actions">
+                  <td className="providers-actions reveal-item">
                     {!provider.is_default ? (
                       <button
                         type="button"

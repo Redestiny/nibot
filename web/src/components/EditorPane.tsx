@@ -25,7 +25,7 @@ const proseTheme = EditorView.theme({
     backgroundColor: 'transparent',
   },
   '.cm-scroller': {
-    fontFamily: '"Source Han Serif SC", "Songti SC", "Noto Serif SC", Georgia, serif',
+    fontFamily: 'var(--font-serif)',
     lineHeight: '2.1',
     padding: '40px 0 120px',
   },
@@ -40,6 +40,7 @@ const proseTheme = EditorView.theme({
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
     backgroundColor: 'var(--selection) !important',
   },
+  '.cm-placeholder': { color: 'var(--text-dim)' },
 });
 
 export function EditorPane() {

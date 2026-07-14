@@ -6,6 +6,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import './styles.css';
 
+if (new URLSearchParams(location.search).get('titlebar') === 'inset') {
+  document.documentElement.classList.add('titlebar-inset');
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

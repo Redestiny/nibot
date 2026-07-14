@@ -92,6 +92,10 @@ async function createWindow(): Promise<void> {
     minWidth: 960,
     minHeight: 600,
     title: 'Nibot',
+    backgroundColor: '#ffffff',
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 16 } }
+      : {}),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -106,7 +110,8 @@ async function createWindow(): Promise<void> {
     return { action: 'deny' };
   });
 
-  await win.loadURL(serverUrl);
+  const loadUrl = process.platform === 'darwin' ? `${serverUrl}?titlebar=inset` : serverUrl;
+  await win.loadURL(loadUrl);
 }
 
 const gotLock = app.requestSingleInstanceLock();

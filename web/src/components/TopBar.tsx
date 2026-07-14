@@ -1,5 +1,7 @@
 import { useBooks } from '../api/queries';
 import { useSessionStore } from '../stores/session';
+import { useUiStore } from '../stores/ui';
+import { IconSidebarToggle } from './icons';
 
 export function TopBar() {
   const books = useBooks();
@@ -8,6 +10,8 @@ export function TopBar() {
   const setBook = useSessionStore((state) => state.setBook);
   const openModal = useSessionStore((state) => state.openModal);
   const flushSave = useSessionStore((state) => state.flushSave);
+  const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
+  const toggleSidebar = useUiStore((state) => state.toggleSidebar);
 
   const switchBook = async (nextBookId: string) => {
     await flushSave?.();
@@ -16,6 +20,15 @@ export function TopBar() {
 
   return (
     <header className="top-bar">
+      <button
+        type="button"
+        className="btn-ghost top-bar-toggle"
+        onClick={toggleSidebar}
+        title={sidebarCollapsed ? '展开侧边栏 (⌘\\)' : '收起侧边栏 (⌘\\)'}
+        aria-label={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+      >
+        <IconSidebarToggle />
+      </button>
       <div className="top-bar-brand">Nibot 写作台</div>
       <select
         className="book-select"
@@ -30,20 +43,20 @@ export function TopBar() {
           </option>
         ))}
       </select>
-      <button type="button" className="btn" onClick={() => openModal('newBook')}>
+      <button type="button" className="btn-ghost" onClick={() => openModal('newBook')}>
         新建书籍
       </button>
       <div className="top-bar-spacer" />
       <button
         type="button"
-        className="btn"
+        className="btn-ghost"
         disabled={!bookId || generation.running}
         onClick={() => openModal('sync')}
         title="根据最新章节由 AI 提议 world_state / characters 的更新，确认后才写入"
       >
         设定同步
       </button>
-      <button type="button" className="btn" onClick={() => openModal('providers')}>
+      <button type="button" className="btn-ghost" onClick={() => openModal('providers')}>
         Provider 设置
       </button>
     </header>
