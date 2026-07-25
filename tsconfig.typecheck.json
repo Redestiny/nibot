@@ -1,0 +1,16 @@
+// The build config excludes *.test.ts (tests must not land in dist/), and
+// vitest strips types without checking them — so nothing typechecked the test
+// files. This config covers everything; `npm run typecheck` runs it.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "vitest.config.ts"
+  ],
+  // `exclude` is inherited from the base config, which drops *.test.ts.
+  "exclude": []
+}

@@ -20,5 +20,9 @@ jobs:
           # Tests never launch Electron; skip the ~100MB binary download.
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm run build
+      # Covers what `npm run build` does not: the test files (excluded from the
+      # build so they stay out of dist/, and vitest strips types without
+      # checking them) and the Electron main process (bundled by esbuild only).
+      - run: npm run typecheck
       - run: npm test
       - run: npm run test:web

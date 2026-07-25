@@ -63,6 +63,7 @@ describe('Nibot app integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
@@ -103,6 +104,7 @@ describe('Nibot app integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
@@ -319,6 +321,7 @@ describe('Nibot app integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',

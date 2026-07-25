@@ -16,6 +16,7 @@ import {
   setDefaultProviderInStore,
   validateProviderConfig,
 } from './providers.js';
+import type { ProviderStore } from './types.js';
 
 const tempDirs: string[] = [];
 
@@ -58,7 +59,7 @@ describe('providers', () => {
   });
 
   it('sets default provider explicitly', () => {
-    const store = {
+    const store: ProviderStore = {
       providers: [
         {
           type: 'openai',
@@ -130,7 +131,7 @@ describe('providers', () => {
 
   it('saves and loads provider config from the XDG path', async () => {
     const xdgConfigHome = join(await createTempDir(), 'custom-config');
-    const store = {
+    const store: ProviderStore = {
       providers: [
         {
           type: 'openai',
@@ -161,7 +162,7 @@ describe('providers', () => {
   });
 
   it('removes providers and clears the default only when the default is removed', () => {
-    const store = {
+    const store: ProviderStore = {
       providers: [
         {
           type: 'openai' as const,

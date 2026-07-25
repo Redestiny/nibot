@@ -5,10 +5,13 @@
 ## 构建和测试命令
 
 ```bash
-npm run build   # 编译 TypeScript 到 dist/
-npm run dev     # 直接用 tsx 运行 CLI（无需编译）
-npm test        # 运行 vitest 单元测试
+npm run build       # 编译 TypeScript 到 dist/
+npm run dev         # 直接用 tsx 运行 CLI（无需编译）
+npm test            # 运行 vitest 单元测试
+npm run typecheck   # 类型检查 build 覆盖不到的部分：测试文件 + Electron 主进程
 ```
+
+`npm run build` 只检查会进 `dist/` 的代码，vitest 也不做类型检查，所以改完测试文件请跑一次 `npm run typecheck`（CI 会跑）。
 
 ## 项目概述
 

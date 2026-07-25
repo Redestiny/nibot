@@ -14,7 +14,9 @@ const makeSetting = (filename: string, content: string): LoadedSetting => ({
 });
 
 const makeChapter = (filename: string, content: string): LoadedChapter => ({
+  number: Number.parseInt(filename, 10),
   filename,
+  path: `chapters/${filename}`,
   content,
 });
 
