@@ -20,8 +20,8 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: "npm"
@@ -41,8 +41,8 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: "npm"
@@ -72,7 +72,9 @@ jobs:
           # release/ 和 release-portable/ 两层，下游 `gh release create` 拿到
           # 的就是目录而不是文件。
           Move-Item electron/release-portable/*.zip electron/release/
-      - uses: actions/upload-artifact@v4
+      # v6 是第一个 runs.using: node24 的版本（v5 仍是 node20），所以这里比
+      # checkout/setup-node 的 v5 高一档，不要为了整齐往回对齐。
+      - uses: actions/upload-artifact@v6
         with:
           name: dist-${{ runner.os }}
           if-no-files-found: error
@@ -89,7 +91,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      # 同理，download-artifact 要到 v7 才是 node24（v5、v6 都还是 node20）。
+      - uses: actions/download-artifact@v7
         with:
           path: assets
           merge-multiple: true
