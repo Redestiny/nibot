@@ -5,6 +5,7 @@ import { NibotError } from '../core/errors.js';
 import { isSettingFilename, parseChapterNumber } from '../core/workspace.js';
 import type { GenerateResult, GenerateStreamEvent } from '../shared/bridge.js';
 import { toBridgeError } from './errors.js';
+import { createLocalOriginGuard } from './origin.js';
 
 type NibotApp = Awaited<ReturnType<typeof createNibotApp>>;
 
@@ -14,6 +15,10 @@ type NibotApp = Awaited<ReturnType<typeof createNibotApp>>;
 export async function createServer(dependencies: AppDependencies): Promise<Hono> {
   const app = await createNibotApp(dependencies);
   const server = new Hono();
+
+  // Registered first so it also covers the static-asset catch-all that
+  // startServer appends after these routes.
+  server.use('*', createLocalOriginGuard());
 
   server.onError((error, c) => {
     const { status, error: bridgeError } = toBridgeError(error);

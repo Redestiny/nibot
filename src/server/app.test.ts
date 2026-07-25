@@ -296,4 +296,61 @@ describe('nibot HTTP server', () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ error: { code: 'NOT_FOUND' } });
   });
+
+  describe('cross-site protection', () => {
+    it('rejects a cross-site origin even on a preflight-free simple POST', async () => {
+      const { server, cwd } = await setupServer();
+
+      const response = await server.request('http://127.0.0.1:4317/api/books', {
+        method: 'POST',
+        // text/plain keeps this a CORS "simple request": no preflight is sent,
+        // so the Origin check is the only thing standing in the way.
+        headers: { 'content-type': 'text/plain', origin: 'https://evil.example' },
+        body: JSON.stringify({ book_id: 'csrf' }),
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ error: { code: 'FORBIDDEN_ORIGIN' } });
+      await expect(readFile(join(cwd, 'csrf', 'book.json'), 'utf8')).rejects.toThrow();
+    });
+
+    it('rejects a loopback origin on a different port', async () => {
+      const { server } = await setupServer();
+
+      const response = await server.request('http://127.0.0.1:4317/api/providers', {
+        headers: { origin: 'http://127.0.0.1:9999' },
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ error: { code: 'FORBIDDEN_ORIGIN' } });
+    });
+
+    it('rejects a rebound hostname', async () => {
+      const { server } = await setupServer();
+
+      const response = await server.request('http://attacker.example:4317/api/providers');
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ error: { code: 'FORBIDDEN_HOST' } });
+    });
+
+    it('allows same-origin requests and origin-less navigations', async () => {
+      const { server } = await setupServer();
+
+      const sameOrigin = await server.request('http://127.0.0.1:4317/api/providers', {
+        headers: { origin: 'http://127.0.0.1:4317' },
+      });
+      expect(sameOrigin.status).toBe(200);
+
+      // The Vite dev proxy forwards the browser's Host and Origin untouched.
+      const viaDevProxy = await server.request('http://localhost:5173/api/providers', {
+        headers: { origin: 'http://localhost:5173' },
+      });
+      expect(viaDevProxy.status).toBe(200);
+
+      // Top-level navigations carry no Origin header.
+      const navigation = await server.request('http://127.0.0.1:4317/api/providers');
+      expect(navigation.status).toBe(200);
+    });
+  });
 });
