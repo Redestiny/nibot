@@ -333,6 +333,26 @@ export async function buildProgram(options: BuildCliOptions = {}): Promise<Comma
       output.info(`Default provider set to "${result.default_provider}".`);
     });
 
+  provider
+    .command('remove')
+    .argument('<name>', 'Provider name')
+    .option('--json', 'Output structured JSON')
+    .action(async (name: string, commandOptions: { json?: boolean }) => {
+      const output = new OutputWriter(io, Boolean(commandOptions.json));
+      const result = await app.removeProvider(name);
+
+      if (commandOptions.json) {
+        output.json(result);
+        return;
+      }
+
+      output.info(`Removed provider "${result.removed}".`);
+      // Removing the default clears it rather than picking a successor.
+      if (result.default_provider === null) {
+        output.info('No default provider is set. Run "nibot provider set-default <name>".');
+      }
+    });
+
   return program;
 }
 

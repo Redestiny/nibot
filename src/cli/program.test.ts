@@ -49,6 +49,7 @@ describe('CLI integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
@@ -93,6 +94,72 @@ describe('CLI integration', () => {
     });
   });
 
+  it('removes providers and clears the default when it was the one removed', async () => {
+    const homeDir = await createTempDir();
+    const cwd = await createTempDir();
+
+    await saveProviderStore(
+      {
+        providers: [
+          {
+            type: 'openai',
+            name: 'deepseek',
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-test-123456',
+            model: 'deepseek-chat',
+          },
+          {
+            type: 'anthropic',
+            name: 'claude',
+            base_url: 'https://api.anthropic.com',
+            api_key: 'sk-ant-123456',
+            model: 'claude-sonnet-4-5',
+          },
+        ],
+        default_provider: 'deepseek',
+      },
+      homeDir,
+    );
+
+    const stdout = new PassThrough();
+    expect(
+      await runCli(['node', 'nibot', 'provider', 'remove', 'deepseek', '--json'], {
+        cwd,
+        homeDir,
+        stdout,
+        stderr: new PassThrough(),
+      }),
+    ).toBe(0);
+
+    expect(JSON.parse(await streamToString(stdout))).toEqual({
+      removed: 'deepseek',
+      default_provider: null,
+    });
+
+    const listStdout = new PassThrough();
+    await runCli(['node', 'nibot', 'provider', 'list', '--json'], {
+      cwd,
+      homeDir,
+      stdout: listStdout,
+      stderr: new PassThrough(),
+    });
+    expect(JSON.parse(await streamToString(listStdout))).toMatchObject({
+      default_provider: null,
+      providers: [{ name: 'claude' }],
+    });
+
+    const stderr = new PassThrough();
+    expect(
+      await runCli(['node', 'nibot', 'provider', 'remove', 'ghost'], {
+        cwd,
+        homeDir,
+        stdout: new PassThrough(),
+        stderr,
+      }),
+    ).toBe(1);
+    expect(await streamToString(stderr)).toContain('does not exist');
+  });
+
   it('streams write output to stderr in json mode and writes files', async () => {
     const cwd = await createTempDir();
     const homeDir = await createTempDir();
@@ -102,6 +169,7 @@ describe('CLI integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
@@ -159,6 +227,7 @@ describe('CLI integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
@@ -236,6 +305,7 @@ describe('CLI integration', () => {
       {
         providers: [
           {
+            type: 'openai',
             name: 'deepseek',
             base_url: 'https://api.deepseek.com/v1',
             api_key: 'sk-test-123456',
