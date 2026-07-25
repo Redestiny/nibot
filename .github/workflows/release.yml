@@ -65,18 +65,24 @@ jobs:
       # to Nibot.exe, which must not end up inside the installer.
       - name: Package (win, portable)
         if: runner.os == 'Windows'
-        run: npm run dist:win:portable -w electron -- --publish never
+        run: |
+          npm run dist:win:portable -w electron -- --publish never
+          # 打完就收拢到 release/。upload-artifact 以所有匹配文件的最近公共
+          # 祖先作为 artifact 根目录，一旦 path 跨越两个目录，产物里就会多出
+          # release/ 和 release-portable/ 两层，下游 `gh release create` 拿到
+          # 的就是目录而不是文件。
+          Move-Item electron/release-portable/*.zip electron/release/
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ runner.os }}
           if-no-files-found: error
+          # 全部位于 electron/release/ 之下，artifact 内是扁平的文件列表。
           path: |
             electron/release/*.dmg
             electron/release/*.zip
             electron/release/*.exe
             electron/release/*.blockmap
             electron/release/latest*.yml
-            electron/release-portable/*.zip
 
   release:
     if: github.ref_type == 'tag'
@@ -107,6 +113,10 @@ jobs:
 
           安装版的书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换），provider 配置与 CLI 共享 `~/.config/nibot`；绿色版两者都在 `data/` 下，与 CLI 相互独立。
           EOF
-          ls -la assets/
-          gh release create "$GITHUB_REF_NAME" assets/* --repo "$GITHUB_REPOSITORY" \
+          find assets -type f -exec ls -lh {} +
+          # 用 find 而不是 assets/*：后者一旦 artifact 里带上目录层级就会把目录
+          # 传给 gh，报 "read assets/xxx: is a directory" 而不是明确的错。
+          mapfile -t files < <(find assets -type f)
+          test ${#files[@]} -gt 0 || { echo "assets/ 下没有任何文件"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" --notes-file notes.md --latest

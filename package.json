@@ -2,6 +2,16 @@
   "name": "@redestiny/nibot",
   "version": "0.4.1",
   "description": "Local CLI MVP for AI-assisted long-form writing workflows.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Redestiny/nibot.git"
+  },
+  "homepage": "https://github.com/Redestiny/nibot#readme",
+  "bugs": {
+    "url": "https://github.com/Redestiny/nibot/issues"
+  },
+  "license": "MIT",
+  "author": "Codada",
   "type": "module",
   "files": [
     "dist"
