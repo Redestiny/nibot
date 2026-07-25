@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "start": "electron .",
     "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win"
+    "dist:win": "electron-builder --win",
+    "dist:win:portable": "electron-builder --win --config electron-builder.portable.yml"
   },
   "devDependencies": {
     "electron": "43.1.0",

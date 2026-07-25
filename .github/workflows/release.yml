@@ -28,6 +28,7 @@ jobs:
       # OIDC 发布要求 npm >= 11.5.1，Node 24 自带版本可能偏旧
       - run: npm install -g npm@latest
       - run: npm ci
+      - run: npm run typecheck
       - run: npm test
       - run: npm run test:web
       - run: npm run build
@@ -47,6 +48,7 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run build
+      - run: npm run typecheck
       - run: npm run build -w electron
       # No signing certificates: mac builds are ad-hoc signed, win builds
       # unsigned. The release job attaches all artifacts in one place, so
@@ -59,15 +61,22 @@ jobs:
       - name: Package (win)
         if: runner.os == 'Windows'
         run: npm run dist:win -w electron -- --publish never
+      # Separate invocation and output dir: the green build stages data/ next
+      # to Nibot.exe, which must not end up inside the installer.
+      - name: Package (win, portable)
+        if: runner.os == 'Windows'
+        run: npm run dist:win:portable -w electron -- --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ runner.os }}
           if-no-files-found: error
           path: |
             electron/release/*.dmg
+            electron/release/*.zip
             electron/release/*.exe
             electron/release/*.blockmap
             electron/release/latest*.yml
+            electron/release-portable/*.zip
 
   release:
     if: github.ref_type == 'tag'
@@ -85,16 +94,18 @@ jobs:
           cat > notes.md <<'EOF'
           Nibot 桌面写作台（内置与 `nibot gui` 相同的界面，无需安装 Node.js）。
 
-          | 平台 | 下载 |
-          |------|------|
-          | macOS（Apple Silicon） | `Nibot-*-mac-arm64.dmg` |
-          | macOS（Intel） | `Nibot-*-mac-x64.dmg` |
-          | Windows（x64） | `Nibot-Setup-*.exe` |
+          | 平台 | 安装版 | 免安装版 |
+          |------|--------|----------|
+          | macOS（Apple Silicon） | `Nibot-*-mac-arm64.dmg` | `Nibot-*-mac-arm64.zip` |
+          | macOS（Intel） | `Nibot-*-mac-x64.dmg` | `Nibot-*-mac-x64.zip` |
+          | Windows（x64） | `Nibot-Setup-*.exe` | `Nibot-*-win-x64-portable.zip` |
 
           **macOS 首次打开**：安装包未经 Apple 公证，若提示"已损坏/无法打开"，请执行 `xattr -cr /Applications/Nibot.app` 后重新打开。
           **Windows 首次打开**：安装包未签名，SmartScreen 提示时点击"更多信息 → 仍要运行"。
 
-          书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换），provider 配置与 CLI 共享 `~/.config/nibot`。
+          **Windows 免安装版（绿色版）**：解压后双击 `Nibot.exe` 即可，无需安装。所有数据都写在 `data/` 目录里，整个文件夹可以拷到 U 盘随身带；删掉 `data/` 就退回普通模式。详见包内的 `data/README.txt`。
+
+          安装版的书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换），provider 配置与 CLI 共享 `~/.config/nibot`；绿色版两者都在 `data/` 下，与 CLI 相互独立。
           EOF
           ls -la assets/
           gh release create "$GITHUB_REF_NAME" assets/* --repo "$GITHUB_REPOSITORY" \

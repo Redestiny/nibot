@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BrowserWindow, Menu, app, dialog, shell } from 'electron';
@@ -12,6 +12,34 @@ interface DesktopConfig {
 }
 
 let serverUrl = '';
+
+// 绿色（免安装）模式：程序目录旁存在 data/ 时，provider 配置、书籍和 Chromium
+// 缓存全部写进该目录，机器上不留痕迹。免安装 zip 包自带这个目录；安装版没有，
+// 于是照旧使用系统目录并与 CLI 共享同一份 ~/.config/nibot。
+const portableDataDir = resolvePortableDataDir();
+
+if (portableDataDir) {
+  // Must happen before anything touches userData (including the single-instance
+  // lock below), and app.setPath only accepts this before the app is ready.
+  app.setPath('userData', join(portableDataDir, 'app'));
+}
+
+function resolvePortableDataDir(): string | null {
+  if (!app.isPackaged) {
+    return null;
+  }
+
+  const dir = join(appContainerDir(), 'data');
+  return existsSync(dir) ? dir : null;
+}
+
+// The directory the user sees the app as living in: next to Nibot.exe on
+// Windows, and next to Nibot.app on macOS (getPath('exe') points at the binary
+// buried three levels inside the bundle).
+function appContainerDir(): string {
+  const exeDir = dirname(app.getPath('exe'));
+  return process.platform === 'darwin' ? resolve(exeDir, '..', '..', '..') : exeDir;
+}
 
 function configPath(): string {
   return join(app.getPath('userData'), 'desktop.json');
@@ -31,13 +59,16 @@ function saveConfig(config: DesktopConfig): void {
 }
 
 // Books live in a user-visible folder (not userData) so they survive an app
-// uninstall and stay editable with the CLI or any other editor.
+// uninstall and stay editable with the CLI or any other editor. In portable
+// mode that folder travels with the app instead.
 function resolveBooksDir(): string {
   const configured = loadConfig().booksDir;
   if (configured && existsSync(configured)) {
     return configured;
   }
-  const fallback = join(app.getPath('documents'), 'Nibot');
+  const fallback = portableDataDir
+    ? join(portableDataDir, 'books')
+    : join(app.getPath('documents'), 'Nibot');
   mkdirSync(fallback, { recursive: true });
   return fallback;
 }
@@ -140,9 +171,11 @@ if (!gotLock) {
       const webRoot = fileURLToPath(new URL('./web/', import.meta.url));
       // Port 0: the OS picks a free loopback port, so a running `nibot gui`
       // (default 4317) never conflicts with the desktop app. homeDir stays
-      // unset so provider config resolves exactly like the CLI (XDG/~/.config).
+      // unset outside portable mode, so provider config resolves exactly like
+      // the CLI (XDG/~/.config); portable mode redirects it into data/.config.
       const { url } = await startServer({
         cwd: resolveBooksDir(),
+        homeDir: portableDataDir ?? undefined,
         port: 0,
         webRoot,
       });

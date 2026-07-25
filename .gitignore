@@ -141,3 +141,7 @@ vite.config.ts.timestamp-*
 # Electron desktop build output
 electron/build/
 electron/release/
+electron/release-portable/
+
+# macOS
+.DS_Store

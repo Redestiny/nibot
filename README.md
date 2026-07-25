@@ -21,15 +21,34 @@ Nibot是一个小说写作辅助工具
 
 ### 桌面版（macOS / Windows）
 
-无需安装 Node.js，从 [GitHub Releases](https://github.com/Redestiny/nibot/releases/latest) 下载安装包，打开即用：
+无需安装 Node.js，从 [GitHub Releases](https://github.com/Redestiny/nibot/releases/latest) 下载，打开即用：
 
-| 平台 | 安装包 |
-|------|--------|
-| macOS（Apple Silicon） | `Nibot-<版本>-mac-arm64.dmg` |
-| macOS（Intel） | `Nibot-<版本>-mac-x64.dmg` |
-| Windows（x64） | `Nibot-Setup-<版本>.exe` |
+| 平台 | 安装版 | 免安装版 |
+|------|--------|----------|
+| macOS（Apple Silicon） | `Nibot-<版本>-mac-arm64.dmg` | `Nibot-<版本>-mac-arm64.zip` |
+| macOS（Intel） | `Nibot-<版本>-mac-x64.dmg` | `Nibot-<版本>-mac-x64.zip` |
+| Windows（x64） | `Nibot-Setup-<版本>.exe` | `Nibot-<版本>-win-x64-portable.zip` |
 
 首次启动后，在界面右侧添加 provider（API 提供商）即可开始写作。书籍默认保存在 `文档/Nibot`（菜单"文件 → 选择书籍目录"可更换）。
+
+#### Windows 免安装版（绿色版）
+
+解压后双击 `Nibot.exe` 即可，不写注册表、不进开始菜单。包内自带一个 `data` 目录，Nibot 检测到它就进入绿色模式，把所有数据都写在里面：
+
+```
+Nibot/
+  Nibot.exe
+  data/
+    .config/nibot/config.json   provider 配置（含明文 API key）
+    books/                      书籍
+    app/                        窗口状态、浏览器缓存
+```
+
+整个文件夹拷到 U 盘或另一台电脑可以直接接着用。删掉 `data` 就退回普通模式（改用系统目录，并与 CLI 共享 `~/.config/nibot`）；反过来，在安装版的 `Nibot.exe` 旁边新建一个 `data` 文件夹，重启后同样会切换到绿色模式。
+
+两种模式的 provider 配置各自独立，切换后需要重新配一次。
+
+macOS 的 `.app` 本身就是自包含的，`.zip` 解压即用，所以没有单独的绿色包；如果确实需要，在 `Nibot.app` 同级目录建一个 `data` 文件夹也会触发绿色模式。
 
 > **macOS 首次打开**：安装包未经 Apple 公证，若提示"已损坏/无法打开"，请在终端执行 `xattr -cr /Applications/Nibot.app` 后重新打开，或在"系统设置 → 隐私与安全性"中选择"仍要打开"。
 >
@@ -72,6 +91,7 @@ nibot provider add          # 交互式添加 API 提供商
 | `nibot provider add` | 交互式添加 provider |
 | `nibot provider list` | 列出所有 provider |
 | `nibot provider set-default <name>` | 设置默认 provider |
+| `nibot provider remove <name>` | 删除 provider（删掉默认项时不会自动选一个新的） |
 
 ---
 
@@ -95,6 +115,7 @@ nibot gui --open   # 启动并自动打开浏览器
 
 - 章节文件以磁盘为唯一事实源；GUI 与 CLI（或多个 GUI 标签页）同时编辑同一章节时为"后写覆盖"（last-write-wins）。
 - provider 配置含明文 API key（`~/.config/nibot/config.json`，权限 0600），因此服务只绑定 `127.0.0.1`，请勿将端口暴露到公网。
+- 仅绑定回环地址并不能阻止浏览器跨站请求，因此服务还会校验 `Host` 与 `Origin`：`Host` 必须是回环名（防 DNS rebinding），`Origin` 存在时必须与 `Host` 一致（防 CSRF）。其他网页无法借用户的浏览器调用本机 API。
 
 ### 开发（本仓库）
 
@@ -104,6 +125,10 @@ npm run dev -- gui --dir <书籍目录>   # 启动 API 服务（4317）
 npm run dev:web                       # 启动 Vite 开发服务器（5173，代理 /api）
 npm run dist:mac                      # 本地构建桌面版，产物在 electron/release/
 npm run dist:win
+npm run dist:win:portable             # Windows 绿色版，产物在 electron/release-portable/
+npm run typecheck                     # build 覆盖不到的部分：测试文件 + Electron 主进程
 ```
 
-前端位于 `web/`（React + Vite），通过 `src/shared/bridge.ts` 中的 `NibotBridge` 类型接口访问后端（当前为 HTTP + NDJSON 流实现）。桌面版（`electron/`）在主进程内嵌同一套服务；推送 `v*` tag 会自动构建 macOS/Windows 安装包并发布 GitHub Release。
+前端位于 `web/`（React + Vite），通过 `src/shared/bridge.ts` 中的 `NibotBridge` 类型接口访问后端（当前为 HTTP + NDJSON 流实现）。桌面版（`electron/`）在主进程内嵌同一套服务；推送 `v*` tag 会自动构建 macOS/Windows 的安装版与免安装版并发布 GitHub Release。
+
+绿色版用独立的 [electron-builder.portable.yml](electron/electron-builder.portable.yml) 打包：它通过 `extraFiles` 把 `electron/portable/data/` 放到 `Nibot.exe` 旁边，主进程启动时据此决定数据落点。两份配置的 output 目录必须分开——安装版和绿色版的 pack 内容不同，共用 `win-unpacked` 会让 `data/` 混进安装包。

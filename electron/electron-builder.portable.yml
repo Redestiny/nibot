@@ -1,0 +1,27 @@
+# 绿色（免安装）版打包配置。与 electron-builder.yml 的差别只有三处：
+#   - 只出 zip，不出安装包
+#   - extraFiles 把 portable/data/ 放到 Nibot.exe 旁边，主进程据此进入绿色模式
+#   - 独立的 output 目录，避免和安装版共用 win-unpacked（两者的 pack 内容不同，
+#     共用会让先构建的那个把 data/ 带进安装包，或者反过来漏掉）
+appId: com.redestiny.nibot
+productName: Nibot
+directories:
+  output: release-portable
+  buildResources: resources
+files:
+  - build/**
+  - package.json
+  - "!node_modules"
+extraFiles:
+  - from: portable
+    to: .
+asar: true
+npmRebuild: false
+
+win:
+  target:
+    - target: zip
+      arch: [x64]
+  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}
+
+publish: null

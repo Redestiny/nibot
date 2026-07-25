@@ -17,6 +17,10 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
+    # 免安装版：解压即得 Nibot.app，省掉挂载 dmg 那一步。macOS 的 .app 本来
+    # 就是自包含的，所以不需要像 Windows 那样单独出一个绿色包。
+    - target: zip
+      arch: [arm64, x64]
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   extendInfo:
     # Books default to ~/Documents/Nibot; first launch triggers the macOS
